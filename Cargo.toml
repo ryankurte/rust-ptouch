@@ -1,0 +1,30 @@
+[package]
+name = "ptouch"
+repository = "https://github.com/ryankurte/rust-ptouch"
+version = "0.1.0"
+authors = ["ryan <ryan@kurte.nz>"]
+edition = "2018"
+license = "MPL-2.0"
+
+[features]
+util = []
+default = [ "util" ]
+
+[dependencies]
+structopt = "0.3.21"
+simplelog = "0.9.0"
+rusb = "0.7.0"
+failure = "0.1.8"
+lazy_static = "1.4.0"
+log = "0.4.13"
+bitfield = "0.13.2"
+bitflags = "1.2.1"
+strum = "0.20.0"
+strum_macros = "0.20.1"
+anyhow = "1.0.38"
+
+
+[[bin]]
+name = "ptouch-util"
+path = "src/util.rs"
+required-features = [ "util" ]
