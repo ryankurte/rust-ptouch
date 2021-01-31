@@ -14,7 +14,7 @@ jobs:
   build-util:
 
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.experimental }}
+    continue-on-error: true
 
     strategy:
       fail-fast: false
@@ -23,23 +23,20 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             output: ptouch-util
-            use_cross: false
-            experimental: false
           - target: armv7-unknown-linux-gnueabihf 
             os: ubuntu-20.04
             output: ptouch-util
-            use_cross: true
-            experimental: true
+            apt-arch: armhf
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-20.04
+            output: ptouch-util
+            apt-arch: aarch64
           - target: x86_64-apple-darwin
             os: macos-latest
             output: ptouch-util
-            use_cross: false
-            experimental: false
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             output: ptouch-util.exe
-            use_cross: false
-            experimental: true
 
     steps:
     - uses: actions/checkout@v2
@@ -70,12 +67,12 @@ jobs:
       if: ${{ matrix.os == 'ubuntu-latest' && matrix.target == 'x86_64-unknown-linux-gnu' }}
       run: sudo apt install -y libusb-1.0 libusb-dev
 
-    - name: Install libusb (armv7)
-      if: ${{ matrix.target == 'armv7-unknown-linux-gnueabihf' }}
+    - name: Install libusb (foreign architecture)
+      if: ${{ matrix.apt-arch }}
       uses: ryankurte/action-apt@v0.3.0
       with:
-        arch: armhf
-        packages: libusb-dev:armhf
+        arch: ${{ matrix.apt-arch }}
+        packages: libusb-dev:${{ matrix.apt-arch }}
 
     - name: Install cross toolchain (armv7)
       if: ${{ matrix.target == 'armv7-unknown-linux-gnueabihf' }}

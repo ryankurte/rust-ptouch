@@ -7,14 +7,12 @@ edition = "2018"
 license = "MPL-2.0"
 
 [features]
-util = []
+util = [ "simplelog", "fonterator", "barcoders", "qrcode" ]
 default = [ "util" ]
 
 [dependencies]
 structopt = "0.3.21"
-simplelog = "0.9.0"
 rusb = "0.7.0"
-failure = "0.1.8"
 lazy_static = "1.4.0"
 log = "0.4.13"
 bitfield = "0.13.2"
@@ -22,6 +20,13 @@ bitflags = "1.2.1"
 strum = "0.20.0"
 strum_macros = "0.20.1"
 anyhow = "1.0.38"
+
+
+simplelog = { version = "0.9.0", optional = true }
+fonterator = { version = "0.9", optional = true }
+barcoders = { version = "*", optional = true }
+qrcode = { version = "*", optional = true }
+thiserror = "1.0.23"
 
 
 [[bin]]

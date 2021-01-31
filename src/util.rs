@@ -12,11 +12,21 @@ pub struct Options {
     #[structopt(flatten)]
     filter: Filter,
 
+    #[structopt(subcommand)]
+    command: Command,
+
+
     #[structopt(long, default_value = "info")]
     log_level: LevelFilter,
 }
 
-fn main() -> Result<(), anyhow::Error> {
+#[derive(Clone, Debug, PartialEq, StructOpt)]
+pub enum Command {
+    // Fetch printer info
+    Info,
+}
+
+fn main() -> anyhow::Result<()> {
     // Parse CLI options
     let opts = Options::from_args();
 
@@ -26,7 +36,7 @@ fn main() -> Result<(), anyhow::Error> {
     debug!("Connecting to PTouch device: {:?}", opts.filter);
 
     // Create PTouch connection
-    let _ptouch = match PTouch::new(&opts.filter) {
+    let mut ptouch = match PTouch::new(&opts.filter) {
         Ok(d) => d,
         Err(e) => {
             return Err(anyhow::anyhow!("Error connecting to PTouch: {:?}", e));
@@ -36,6 +46,13 @@ fn main() -> Result<(), anyhow::Error> {
     debug!("Device connected!");
 
     // TODO: do things with the printer...
+
+    match &opts.command {
+        Command::Info => {
+            let i = ptouch.info()?;
+            println!("Info: {:?}", i);
+        },
+    }
 
     // TODO: close the printer?
 

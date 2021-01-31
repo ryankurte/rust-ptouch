@@ -2,7 +2,6 @@
 use std::time::Duration;
 
 use log::{trace, debug, error};
-use failure::Fail;
 use structopt::StructOpt;
 
 use rusb::{Context, Device, DeviceDescriptor, DeviceHandle, Direction, TransferType, UsbContext};
@@ -26,26 +25,12 @@ pub struct PTouch {
     stat_ep: u8,
 }
 
-bitflags::bitflags!{
-    struct Error1: u8 {
-        const NO_MEDIA = 0x01;
-        const CUTTER_JAM = 0x04;
-        const WEAK_BATT = 0x08;
-        const HIGH_VOLT = 0x40;
-    }
-}
-
-bitflags::bitflags!{
-    struct Error2: u8 {
-        const WRONG_MEDIA = 0x01;
-        const COVER_OPEN = 0x10;
-        const OVERHEAT = 0x20;
-    }
-}
 
 pub const BROTHER_VID: u16 = 0x04F9;
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_millis(500);
 
+
+/// Filter for selecting a specific PTouch device
 #[derive(Clone, PartialEq, Debug, StructOpt)]
 pub struct Filter {
 
@@ -67,18 +52,18 @@ lazy_static::lazy_static!{
 }
 
 
-#[derive(Debug, Fail)]
+#[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[fail(display = "USB error: {:?}", 0)]
+    #[error("USB error: {:?}", 0)]
     Usb(rusb::Error),
 
-    #[fail(display = "Invalid device index")]
+    #[error("Invalid device index")]
     InvalidIndex,
 
-    #[fail(display = "No supported languages")]
+    #[error("No supported languages")]
     NoLanguages,
 
-    #[fail(display = "Unable to locate expected endpoints")]
+    #[error("Unable to locate expected endpoints")]
     InvalidEndpoints,
 }
 
@@ -98,8 +83,14 @@ pub struct Info {
 impl PTouch {
     /// Create a new PTouch driver with the provided USB options
     pub fn new(o: &Filter) -> Result<Self, Error> {
+        Self::new_with_context(o, &CONTEXT)
+    }
+
+    /// Create a new PTouch driver with the provided USB options and rusb::Context
+    pub fn new_with_context(o: &Filter, context: &Context) -> Result<Self, Error> {
+        
         // List available devices
-        let devices = CONTEXT.devices()?;
+        let devices = context.devices()?;
 
         // Find matching VID/PIDs
         let mut matches: Vec<_> = devices.iter().filter_map(|d| {
@@ -179,6 +170,7 @@ impl PTouch {
 
         Ok(Self{_device: device, handle, descriptor, cmd_ep, stat_ep, timeout: DEFAULT_TIMEOUT})
     }
+
 
     /// Fetch device information
     pub fn info(&mut self) -> Result<Info, Error> {

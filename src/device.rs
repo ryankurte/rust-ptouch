@@ -2,6 +2,22 @@
 use bitflags::bitflags;
 use strum_macros::{EnumString, ToString};
 
+bitflags::bitflags!{
+    struct Error1: u8 {
+        const NO_MEDIA = 0x01;
+        const CUTTER_JAM = 0x04;
+        const WEAK_BATT = 0x08;
+        const HIGH_VOLT = 0x40;
+    }
+}
+
+bitflags::bitflags!{
+    struct Error2: u8 {
+        const WRONG_MEDIA = 0x01;
+        const COVER_OPEN = 0x10;
+        const OVERHEAT = 0x20;
+    }
+}
 #[derive(Copy, Clone, PartialEq, Debug, EnumString, ToString)]
 pub enum PTouchDevice {
     #[strum(serialize = "pt-e550w")]

@@ -75,6 +75,13 @@ pub fn compress(data: &[u8]) -> Vec<u8> {
         }
     }
 
+    // If the encoded length > 16, just use this in simple mode.
+    if c.len() > 16 {
+        c = vec![];
+        c.push(data.len() as u8);
+        c.extend_from_slice(data);
+    }
+
     c
 }
 
