@@ -6,13 +6,14 @@ use structopt::StructOpt;
 
 use rusb::{Context, Device, DeviceDescriptor, DeviceHandle, Direction, TransferType, UsbContext};
 
-
 pub mod device;
 
 pub mod commands;
 pub use commands::Commands;
 
 pub mod tiff;
+
+pub mod render;
 
 pub struct PTouch {
     _device: Device<Context>,
@@ -196,6 +197,17 @@ impl PTouch {
         
 
         Ok(Info{manufacturer, product, serial})
+    }
+
+    pub fn print(&mut self, img: ()) -> Result<(), Error> {
+
+        // Check image size is viable
+
+        // Send setup print commands
+
+        // Write out print data
+
+        unimplemented!()
     }
 
     /// Read from status EP (with specified timeout)
