@@ -66,6 +66,9 @@ pub enum Error {
 
     #[error("Unable to locate expected endpoints")]
     InvalidEndpoints,
+
+    #[error("Renderer error")]
+    Render,
 }
 
 impl From<rusb::Error> for Error {
