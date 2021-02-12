@@ -8,10 +8,10 @@ license = "MPL-2.0"
 
 [features]
 util = [ ]
-default = [ "util" ]
+default = [ "util", "structopt" ]
 
 [dependencies]
-structopt = "0.3.21"
+structopt = { version = "0.3.21", optional = true }
 rusb = "0.7.0"
 lazy_static = "1.4.0"
 log = "0.4.13"
@@ -30,6 +30,7 @@ tempdir = "0.3.7"
 embedded-graphics = "0.6.2"
 
 embedded-graphics-simulator = "0.2.0"
+serde = { version = "1.0.123", features = [ "derive" ] }
 
 [[bin]]
 name = "ptouch-util"

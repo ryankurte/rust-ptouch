@@ -4,7 +4,7 @@ use log::{debug};
 use structopt::StructOpt;
 use simplelog::{TermLogger, LevelFilter, TerminalMode};
 
-use ptouch::{PTouch, Filter};
+use ptouch::{Filter, PTouch, render::{Render, RenderConfig, Op}};
 
 #[derive(Clone, Debug, PartialEq, StructOpt)]
 pub struct Options {
@@ -15,7 +15,6 @@ pub struct Options {
     #[structopt(subcommand)]
     command: Command,
 
-
     #[structopt(long, default_value = "info")]
     log_level: LevelFilter,
 }
@@ -24,6 +23,9 @@ pub struct Options {
 pub enum Command {
     // Fetch printer info
     Info,
+
+    // Render a print preview
+    Preview,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -33,9 +35,29 @@ fn main() -> anyhow::Result<()> {
     // Setup logging
     TermLogger::init(opts.log_level, simplelog::Config::default(), TerminalMode::Mixed).unwrap();
 
-    debug!("Connecting to PTouch device: {:?}", opts.filter);
+    // Run commands that do not _require_ the printer
+    match &opts.command {
+        Command::Preview => {
+            let cfg = RenderConfig::default();
+            let ops = vec![
+                Op::pad(16),
+                Op::text("Hello\nWorld"),
+                Op::pad(16),
+            ];
+            let mut r = Render::new(cfg);
+            
+            r.render(&ops)?;
+            
+            r.show()?;
+
+            return Ok(())
+        },
+        _ => (),
+    }
 
     // Create PTouch connection
+    debug!("Connecting to PTouch device: {:?}", opts.filter);
+
     let mut ptouch = match PTouch::new(&opts.filter) {
         Ok(d) => d,
         Err(e) => {
@@ -52,6 +74,7 @@ fn main() -> anyhow::Result<()> {
             let i = ptouch.info()?;
             println!("Info: {:?}", i);
         },
+        _ => (),
     }
 
     // TODO: close the printer?

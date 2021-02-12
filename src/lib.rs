@@ -32,14 +32,14 @@ pub const DEFAULT_TIMEOUT: Duration = Duration::from_millis(500);
 
 
 /// Filter for selecting a specific PTouch device
-#[derive(Clone, PartialEq, Debug, StructOpt)]
+#[derive(Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "structopt", derive(StructOpt))]
 pub struct Filter {
-
-    #[structopt(long, default_value="pt-p710bt")]
+    #[cfg_attr(feature = "structopt", structopt(long, default_value="pt-p710bt"))]
     /// Label maker device kind
     pub device: device::PTouchDevice,
 
-    #[cfg_attr(feature = "structopt", default_value="0")]
+    #[cfg_attr(feature = "structopt", structopt(long, default_value="0"))]
     /// Index (if multiple devices are connected)
     pub index: usize,
 }
