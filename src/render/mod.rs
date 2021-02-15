@@ -62,7 +62,7 @@ impl Render {
         let mut x = 0;
         for operation in ops {
             x += match operation {
-                Op::Text{ value, opts} => self.render_text(x, value, opts)?,
+                Op::Text{ value, opts} => self.render_text_ttf(x, value, opts)?,
                 Op::Pad(c) => self.pad(x, *c)?,
                 _ => unimplemented!(),
             }
@@ -100,6 +100,65 @@ impl Render {
         
 
         Ok(line_width)
+    }
+
+    fn render_text_ttf(&mut self, x: usize, value: &str, opts: &TextOptions) -> Result<usize, Error> {
+        // Load font data
+        // TODO: support selecting fonts
+        let font_data = include_bytes!("../../fonts/Terminess-Mono.ttf");
+        let font = rusttype::Font::try_from_bytes(font_data as &[u8]).expect("Error constructing Font");
+
+        // Split by lines
+        let lines: Vec<_> = value.split("\n").collect();
+
+        // Set font size and fetch metrics
+        // TODO: support custom font sizes
+        let scale = rusttype::Scale::uniform(24.0);
+        let v_metrics = font.v_metrics(scale);
+    
+        let v_offset = rusttype::point(0.0, v_metrics.ascent.ceil());
+        let v_height = (v_metrics.ascent - v_metrics.descent + v_metrics.line_gap).ceil() as usize;
+
+        let t_height = v_height * lines.len() - v_metrics.line_gap.floor() as usize;
+
+        // Compute vertical centering
+        let base_x = x;
+        let base_y = match opts.vcentre {
+            true => (self.cfg.y / 2) - (t_height / 2),
+            false => 0,
+        };
+
+        let mut max_line_width = 0;
+
+        // Render each line
+        for i in 0..lines.len() {
+            let line_y = base_y + i * v_height;
+
+            let glyphs: Vec<_> = font.layout(lines[i], scale, v_offset).collect();
+            let line_width = glyphs.iter().map(|g| g.unpositioned().h_metrics().advance_width.ceil() as usize).sum();
+            if line_width > max_line_width {
+                max_line_width = line_width;
+            }
+
+            for g in &glyphs {
+                if let Some(bb) = g.pixel_bounding_box() {
+                    g.draw(|x, y, v| {
+                        let x = x as i32 + bb.min.x + base_x as i32;
+                        let y = y as i32 + bb.min.y + line_y as i32;
+                        let point = Point::new(x, y);
+
+                        // Thresholding required because TTF fonts are seemingly unavoidably rasterized?
+                        // https://docs.rs/rusttype/0.9.2/src/rusttype/lib.rs.html#449
+                        if v > 0.5 {
+                            self.display.draw_pixel(Pixel(point, BinaryColor::On)).unwrap();
+                        }                       
+                    })
+                }
+            }
+        }
+
+        // TODO: return max line width
+        Ok(max_line_width)
     }
 
     fn pad(&mut self, x: usize, columns: usize) -> Result<usize, Error> {

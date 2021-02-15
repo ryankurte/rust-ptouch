@@ -31,6 +31,7 @@ embedded-graphics = "0.6.2"
 
 embedded-graphics-simulator = "0.2.0"
 serde = { version = "1.0.123", features = [ "derive" ] }
+rusttype = "0.9.2"
 
 [[bin]]
 name = "ptouch-util"
