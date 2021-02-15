@@ -1,9 +1,8 @@
-
 use std::time::Duration;
 
-use crate::{Error, PTouch, device::CompressionMode};
+use crate::{device::CompressionMode, Error, PTouch};
 
-use crate::device::{Mode, PrintInfo, VariousMode, AdvancedMode};
+use crate::device::{AdvancedMode, Mode, PrintInfo, VariousMode};
 
 /// Raw command API for the PTouch device
 pub trait Commands {
@@ -75,7 +74,6 @@ impl Commands for PTouch {
     }
 
     fn set_print_info(&mut self, info: &PrintInfo) -> Result<(), Error> {
-
         let mut buff = [0u8; 13];
 
         // Command header
@@ -108,25 +106,27 @@ impl Commands for PTouch {
         self.write(&buff, self.timeout)
     }
 
-
     fn set_various_mode(&mut self, mode: VariousMode) -> Result<(), Error> {
-        self.write(&[ 0x1b, 0x69, 0x4d, mode.bits() ], self.timeout)
+        self.write(&[0x1b, 0x69, 0x4d, mode.bits()], self.timeout)
     }
 
     fn set_advanced_mode(&mut self, mode: AdvancedMode) -> Result<(), Error> {
-        self.write(&[ 0x1b, 0x69, 0x4b, mode.bits() ], self.timeout)
+        self.write(&[0x1b, 0x69, 0x4b, mode.bits()], self.timeout)
     }
 
     fn set_margin(&mut self, dots: u16) -> Result<(), Error> {
-        self.write(&[ 0x1b, 0x69, 0x64, dots as u8, (dots >> 8) as u8 ], self.timeout)
+        self.write(
+            &[0x1b, 0x69, 0x64, dots as u8, (dots >> 8) as u8],
+            self.timeout,
+        )
     }
 
     fn set_page_no(&mut self, no: u8) -> Result<(), Error> {
-        self.write(&[ 0x1b, 0x69, 0x41, no ], self.timeout)
+        self.write(&[0x1b, 0x69, 0x41, no], self.timeout)
     }
 
     fn set_compression_mode(&mut self, mode: CompressionMode) -> Result<(), Error> {
-        self.write(&[ 0x4D, mode as u8 ], self.timeout)
+        self.write(&[0x4D, mode as u8], self.timeout)
     }
 
     fn raster_transfer(&mut self, data: &[u8]) -> Result<(), Error> {
@@ -142,15 +142,14 @@ impl Commands for PTouch {
     }
 
     fn raster_zero(&mut self) -> Result<(), Error> {
-        self.write(&[ 0x5a ], self.timeout)
+        self.write(&[0x5a], self.timeout)
     }
 
     fn print(&mut self) -> Result<(), Error> {
-        self.write(&[ 0x0c ], self.timeout)
+        self.write(&[0x0c], self.timeout)
     }
 
     fn print_and_feed(&mut self) -> Result<(), Error> {
-        self.write(&[ 0x1a ], self.timeout)
+        self.write(&[0x1a], self.timeout)
     }
 }
-

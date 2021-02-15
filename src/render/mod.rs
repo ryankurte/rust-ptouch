@@ -1,18 +1,16 @@
-
 use std::path::Path;
-use std::str::FromStr;
 
 use structopt::StructOpt;
-use serde::{Serialize, Deserialize};
+
+use embedded_graphics::prelude::*;
+use embedded_text::prelude::*;
 
 use embedded_graphics::{
-    image::{Image, ImageRaw},
-    fonts::{Font6x8, Font8x16, Text},
-    style::{TextStyle, TextStyleBuilder},
     pixelcolor::BinaryColor,
-    prelude::*,
 };
-use embedded_graphics_simulator::{BinaryColorTheme, SimulatorDisplay, Window, OutputSettingsBuilder};
+use embedded_graphics_simulator::{
+    BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, Window,
+};
 use qrcode::QrCode;
 
 use crate::Error;
@@ -21,7 +19,6 @@ pub mod display;
 pub use display::*;
 pub mod ops;
 pub use ops::*;
-
 
 #[derive(Clone, PartialEq, Debug, StructOpt)]
 pub struct RenderConfig {
@@ -48,21 +45,20 @@ pub struct Render {
     display: Display,
 }
 
-
 impl Render {
     /// Create a new render instance
     pub fn new(cfg: RenderConfig) -> Self {
         // Setup virtual display for rendering
         let mut display = Display::new(cfg.y as usize, cfg.min_x as usize);
 
-        Self{ cfg, display }
+        Self { cfg, display }
     }
 
     pub fn render(&mut self, ops: &[Op]) -> Result<&Self, Error> {
         let mut x = 0;
         for operation in ops {
             x += match operation {
-                Op::Text{ value, opts} => self.render_text_ttf(x, value, opts)?,
+                Op::Text { value, opts } => self.render_text(x, value, opts)?,
                 Op::Pad(c) => self.pad(x, *c)?,
                 _ => unimplemented!(),
             }
@@ -74,95 +70,144 @@ impl Render {
     }
 
     fn render_text(&mut self, x: usize, value: &str, opts: &TextOptions) -> Result<usize, Error> {
+        use embedded_graphics::fonts::*;
+        use embedded_text::style::vertical_overdraw::Hidden;
+
+
         // TODO: customise styles
 
-        // TODO: compute width / height, centre and scale as appropriate
-        let lines: Vec<_> = value.split("\n").collect();
+        // TODO: custom alignment
 
-        // Find max line width
-        let line_width = lines.iter().map(|v| v.len() * opts.font.char_width() ).max().unwrap();
-        
-        // TODO: configurable vspace
-        let height = lines.len() * opts.font.char_height() + 2 * (lines.len() - 1);
+        // Compute maximum line width
+        let max_line_x = value
+            .split("/n")
+            .map(|line| opts.font.char_width() * line.len())
+            .max()
+            .unwrap();
+        let max_x = self.cfg.max_x.min(max_line_x);
 
-        // Compute vertical centering
-        let y = match opts.vcentre {
-            true => (self.cfg.y / 2) - (height / 2),
-            false => 0,
+        // Create textbox instance
+        let tb = TextBox::new(
+            value,
+            Rectangle::new(
+                Point::new(x as i32, 0 as i32),
+                Point::new(max_x as i32, self.cfg.y as i32),
+            ),
+        );
+
+        #[cfg(nope)]
+        let a = match opts.h_align {
+            HAlign::Centre => CenterAligned,
+            HAlign::Left => LeftAligned,
+            HAlign::Right => RightAligned,
+            HAlign::Justify => Justified,
+        };
+        #[cfg(nope)]
+        let v = match opts.v_align {
+            VAlign::Centre => CenterAligned,
+            VAlign::Top => TopAligned,
+            VAlign::Bottom => BottomAligned,
         };
 
-        // Render font
-        for i in 0..lines.len() {
-            // TODO: compute horizontal centring
+        let a = CenterAligned;
+        let v = CenterAligned;
 
-            opts.font.render(&mut self.display, x, y + (opts.font.char_height() + 2) * i, lines[i])?;
-        }
-        
+        let h = Exact(Hidden);
 
-        Ok(line_width)
-    }
+        // Render with loaded style
+        let res = match opts.font {
+            FontKind::Font6x6 => {
+                let ts = TextBoxStyleBuilder::new(Font6x6)
+                    .text_color(BinaryColor::On)
+                    .height_mode(h)
+                    .alignment(a)
+                    .vertical_alignment(v)
+                    .build();
 
-    fn render_text_ttf(&mut self, x: usize, value: &str, opts: &TextOptions) -> Result<usize, Error> {
-        // Load font data
-        // TODO: support selecting fonts
-        let font_data = include_bytes!("../../fonts/Terminess-Mono.ttf");
-        let font = rusttype::Font::try_from_bytes(font_data as &[u8]).expect("Error constructing Font");
+                let tb = tb.into_styled(ts);
 
-        // Split by lines
-        let lines: Vec<_> = value.split("\n").collect();
+                tb.draw(&mut self.display).unwrap();
 
-        // Set font size and fetch metrics
-        // TODO: support custom font sizes
-        let scale = rusttype::Scale::uniform(24.0);
-        let v_metrics = font.v_metrics(scale);
-    
-        let v_offset = rusttype::point(0.0, v_metrics.ascent.ceil());
-        let v_height = (v_metrics.ascent - v_metrics.descent + v_metrics.line_gap).ceil() as usize;
+                tb.size()
+            }
+            FontKind::Font6x8 => {
+                let ts = TextBoxStyleBuilder::new(Font6x8)
+                    .text_color(BinaryColor::On)
+                    .height_mode(h)
+                    .alignment(a)
+                    .vertical_alignment(v)
+                    .build();
 
-        let t_height = v_height * lines.len() - v_metrics.line_gap.floor() as usize;
+                let tb = tb.into_styled(ts);
 
-        // Compute vertical centering
-        let base_x = x;
-        let base_y = match opts.vcentre {
-            true => (self.cfg.y / 2) - (t_height / 2),
-            false => 0,
+                tb.draw(&mut self.display).unwrap();
+
+                tb.size()
+            }
+            FontKind::Font6x12 => {
+                let ts = TextBoxStyleBuilder::new(Font6x12)
+                    .text_color(BinaryColor::On)
+                    .height_mode(h)
+                    .alignment(a)
+                    .vertical_alignment(v)
+                    .build();
+
+                let tb = tb.into_styled(ts);
+
+                tb.draw(&mut self.display).unwrap();
+
+                tb.size()
+            }
+            FontKind::Font8x16 => {
+                let ts = TextBoxStyleBuilder::new(Font8x16)
+                    .text_color(BinaryColor::On)
+                    .height_mode(h)
+                    .alignment(a)
+                    .vertical_alignment(v)
+                    .build();
+
+                let tb = tb.into_styled(ts);
+
+                tb.draw(&mut self.display).unwrap();
+
+                tb.size()
+            }
+            FontKind::Font12x16 => {
+                let ts = TextBoxStyleBuilder::new(Font12x16)
+                    .text_color(BinaryColor::On)
+                    .height_mode(h)
+                    .alignment(a)
+                    .vertical_alignment(v)
+                    .build();
+
+                let tb = tb.into_styled(ts);
+
+                tb.draw(&mut self.display).unwrap();
+
+                tb.size()
+            }
+            FontKind::Font24x32 => {
+                let ts = TextBoxStyleBuilder::new(Font24x32)
+                    .text_color(BinaryColor::On)
+                    .height_mode(h)
+                    .alignment(a)
+                    .vertical_alignment(v)
+                    .build();
+
+                let tb = tb.into_styled(ts);
+
+                tb.draw(&mut self.display).unwrap();
+
+                tb.size()
+            }
         };
 
-        let mut max_line_width = 0;
-
-        // Render each line
-        for i in 0..lines.len() {
-            let line_y = base_y + i * v_height;
-
-            let glyphs: Vec<_> = font.layout(lines[i], scale, v_offset).collect();
-            let line_width = glyphs.iter().map(|g| g.unpositioned().h_metrics().advance_width.ceil() as usize).sum();
-            if line_width > max_line_width {
-                max_line_width = line_width;
-            }
-
-            for g in &glyphs {
-                if let Some(bb) = g.pixel_bounding_box() {
-                    g.draw(|x, y, v| {
-                        let x = x as i32 + bb.min.x + base_x as i32;
-                        let y = y as i32 + bb.min.y + line_y as i32;
-                        let point = Point::new(x, y);
-
-                        // Thresholding required because TTF fonts are seemingly unavoidably rasterized?
-                        // https://docs.rs/rusttype/0.9.2/src/rusttype/lib.rs.html#449
-                        if v > 0.5 {
-                            self.display.draw_pixel(Pixel(point, BinaryColor::On)).unwrap();
-                        }                       
-                    })
-                }
-            }
-        }
-
-        // TODO: return max line width
-        Ok(max_line_width)
+        Ok(res.width as usize)
     }
 
     fn pad(&mut self, x: usize, columns: usize) -> Result<usize, Error> {
-        self.display.draw_pixel(Pixel(Point::new((x + columns) as i32, 0), BinaryColor::Off))?;
+        self.display
+            .draw_pixel(Pixel(Point::new((x + columns) as i32, 0), BinaryColor::Off))?;
         Ok(columns)
     }
 
@@ -173,9 +218,7 @@ impl Render {
         let img = qr.render::<Luma<u8>>().build();
 
         // Rescale if possible
-        while (img.height() < self.opts.max_y / 2) {
-
-        }
+        while (img.height() < self.opts.max_y / 2) {}
 
         unimplemented!()
     }
@@ -206,7 +249,7 @@ impl Render {
             // TODO: set theme based on tape?
             .theme(BinaryColorTheme::OledBlue)
             .build();
-        
+
         Window::new("Label preview", &output_settings).show_static(&sim_display);
 
         Ok(())
@@ -224,31 +267,55 @@ mod test {
 
     #[test]
     fn test_display() {
-
         let mut d = Display::new(8);
         d.set(0, 0, true).unwrap();
         assert_eq!(d.data, vec![vec![0b0000_0001]]);
-        assert_eq!(d.image().unwrap(), vec![
-            0b0000_0001, 0b0000_0000, 0b0000_0000, 0b0000_0000, 
-            0b0000_0000, 0b0000_0000, 0b0000_0000, 0b0000_0000, 
-        ]);
+        assert_eq!(
+            d.image().unwrap(),
+            vec![
+                0b0000_0001,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+            ]
+        );
 
         let mut d = Display::new(8);
         d.set(1, 0, true).unwrap();
         assert_eq!(d.data, vec![vec![0b0000_0000], vec![0b0000_0001]]);
-        assert_eq!(d.image().unwrap(), vec![
-            0b0000_0010, 0b0000_0000, 0b0000_0000, 0b0000_0000, 
-            0b0000_0000, 0b0000_0000, 0b0000_0000, 0b0000_0000, 
-        ]);
-        
+        assert_eq!(
+            d.image().unwrap(),
+            vec![
+                0b0000_0010,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+            ]
+        );
 
         let mut d = Display::new(8);
         d.set(0, 1, true).unwrap();
         assert_eq!(d.data, vec![vec![0b0000_0010]]);
-        assert_eq!(d.image().unwrap(), vec![
-            0b0000_0000, 0b0000_0001, 0b0000_0000, 0b0000_0000, 
-            0b0000_0000, 0b0000_0000, 0b0000_0000, 0b0000_0000, 
-        ]);
+        assert_eq!(
+            d.image().unwrap(),
+            vec![
+                0b0000_0000,
+                0b0000_0001,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+            ]
+        );
     }
-
 }

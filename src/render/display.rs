@@ -1,29 +1,29 @@
-
 use embedded_graphics::{
-    image::{Image, ImageRaw},
-    fonts::{Font6x8, Text},
-    style::{TextStyle, TextStyleBuilder},
-    pixelcolor::BinaryColor,
     prelude::*,
+    pixelcolor::BinaryColor,
 };
 
-use embedded_graphics_simulator::{BinaryColorTheme, SimulatorDisplay, Window, OutputSettingsBuilder};
 
 use crate::Error;
 
-/// Display provides an supports drawing / viewing data
+/// In memory display for drawing / rendering data
 pub struct Display {
     y: usize,
     data: Vec<Vec<u8>>,
 }
 
 impl Display {
+    /// Create a new display with the provided height and minimum width
     pub fn new(y: usize, min_x: usize) -> Self {
-        let mut s = Self { y, data: vec![vec![0u8; y / 8]; min_x] };
-        
+        let mut s = Self {
+            y,
+            data: vec![vec![0u8; y / 8]; min_x],
+        };
+
         s
     }
 
+    /// Fetch a flipped + compressed vector image for output to printer
     pub fn image(&self) -> Result<Vec<u8>, Error> {
         // Generate new buffer
         let mut x_len = self.data.len();
@@ -31,21 +31,24 @@ impl Display {
             x_len += 1;
         }
 
-        println!("Using {} rows {}({}) columns", self.y, x_len, self.data.len());
+        println!(
+            "Using {} rows {}({}) columns",
+            self.y,
+            x_len,
+            self.data.len()
+        );
 
         let mut buff = vec![0u8; x_len * self.y / 8];
 
         // Reshape from row first to column first
         for x in 0..self.data.len() {
             for y in 0..self.y {
-
                 let i = x / 8 + y * x_len / 8;
                 let m = 1 << (x % 8) as u8;
                 let v = self.get(x, y)?;
                 let p = &mut buff[i];
 
                 println!("x: {} y: {} p: {:5?} i: {} m: 0b{:08b}", x, y, v, i, m);
-                
 
                 match v {
                     true => *p |= m,
@@ -95,6 +98,7 @@ impl Display {
         Ok(c & (1 << (y % 8) as u8) != 0)
     }
 
+    /// Fetch a pixel value by X/Y location
     pub fn get_pixel(&self, x: usize, y: usize) -> Result<Pixel<BinaryColor>, Error> {
         let v = match self.get(x, y)? {
             true => BinaryColor::On,
@@ -105,6 +109,7 @@ impl Display {
     }
 }
 
+/// DrawTarget impl for in-memory Display type
 impl DrawTarget<BinaryColor> for Display {
     type Error = Error;
 
@@ -112,9 +117,8 @@ impl DrawTarget<BinaryColor> for Display {
         let Pixel(coord, color) = pixel;
         self.set(coord.x as usize, coord.y as usize, color.is_on())
     }
-    
+
     fn size(&self) -> Size {
         Size::new(self.data.len() as u32, self.y as u32)
     }
 }
-

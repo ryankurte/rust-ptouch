@@ -1,7 +1,6 @@
-
 use std::time::Duration;
 
-use log::{trace, debug, error};
+use log::{debug, error, trace};
 use structopt::StructOpt;
 
 use rusb::{Context, Device, DeviceDescriptor, DeviceHandle, Direction, TransferType, UsbContext};
@@ -26,32 +25,28 @@ pub struct PTouch {
     stat_ep: u8,
 }
 
-
 pub const BROTHER_VID: u16 = 0x04F9;
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_millis(500);
-
 
 /// Filter for selecting a specific PTouch device
 #[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "structopt", derive(StructOpt))]
 pub struct Filter {
-    #[cfg_attr(feature = "structopt", structopt(long, default_value="pt-p710bt"))]
+    #[cfg_attr(feature = "structopt", structopt(long, default_value = "pt-p710bt"))]
     /// Label maker device kind
     pub device: device::PTouchDevice,
 
-    #[cfg_attr(feature = "structopt", structopt(long, default_value="0"))]
+    #[cfg_attr(feature = "structopt", structopt(long, default_value = "0"))]
     /// Index (if multiple devices are connected)
     pub index: usize,
 }
 
-
 // Lazy initialised libusb context
-lazy_static::lazy_static!{
+lazy_static::lazy_static! {
     static ref CONTEXT: Context = {
         Context::new().unwrap()
     };
 }
-
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -92,34 +87,39 @@ impl PTouch {
 
     /// Create a new PTouch driver with the provided USB options and rusb::Context
     pub fn new_with_context(o: &Filter, context: &Context) -> Result<Self, Error> {
-        
         // List available devices
         let devices = context.devices()?;
 
         // Find matching VID/PIDs
-        let mut matches: Vec<_> = devices.iter().filter_map(|d| {
-            // Fetch device descriptor
-            let desc = match d.device_descriptor() {
-                Ok(d) => d,
-                Err(e) => {
-                    debug!("Could not fetch descriptor for device {:?}: {:?}", d, e);
-                    return None;
+        let mut matches: Vec<_> = devices
+            .iter()
+            .filter_map(|d| {
+                // Fetch device descriptor
+                let desc = match d.device_descriptor() {
+                    Ok(d) => d,
+                    Err(e) => {
+                        debug!("Could not fetch descriptor for device {:?}: {:?}", d, e);
+                        return None;
+                    }
+                };
+
+                // Return devices matching vid/pid filters
+                if desc.vendor_id() == BROTHER_VID && desc.product_id() == o.device as u16 {
+                    Some((d, desc))
+                } else {
+                    None
                 }
-            };
-            
-            // Return devices matching vid/pid filters
-            if desc.vendor_id() == BROTHER_VID && desc.product_id() == o.device as u16 {
-                Some((d, desc))
-            } else {
-                None
-            }
-        }).collect();
+            })
+            .collect();
 
         // Check index is valid
         if matches.len() < o.index || matches.len() == 0 {
-            error!("Device index ({}) exceeds number of discovered devices ({})",
-                o.index, matches.len());
-            return Err(Error::InvalidIndex)
+            error!(
+                "Device index ({}) exceeds number of discovered devices ({})",
+                o.index,
+                matches.len()
+            );
+            return Err(Error::InvalidIndex);
         }
 
         debug!("Found matching devices: {:?}", matches);
@@ -139,7 +139,7 @@ impl PTouch {
             Some(i) => i,
             None => {
                 error!("No interfaces found");
-                return Err(Error::InvalidEndpoints)
+                return Err(Error::InvalidEndpoints);
             }
         };
 
@@ -150,7 +150,6 @@ impl PTouch {
 
         for interface_desc in interface.descriptors() {
             for endpoint_desc in interface_desc.endpoint_descriptors() {
-
                 // Find the relevant endpoints
                 match (endpoint_desc.transfer_type(), endpoint_desc.direction()) {
                     (TransferType::Bulk, Direction::In) => stat_ep = Some(endpoint_desc.address()),
@@ -164,17 +163,22 @@ impl PTouch {
             (Some(cmd), Some(stat)) => (cmd, stat),
             _ => {
                 error!("Failed to locate command and status endpoints");
-                return Err(Error::InvalidEndpoints)
+                return Err(Error::InvalidEndpoints);
             }
         };
 
         // Set endpoint configuration
         handle.set_active_configuration(config_desc.number())?;
 
-
-        Ok(Self{_device: device, handle, descriptor, cmd_ep, stat_ep, timeout: DEFAULT_TIMEOUT})
+        Ok(Self {
+            _device: device,
+            handle,
+            descriptor,
+            cmd_ep,
+            stat_ep,
+            timeout: DEFAULT_TIMEOUT,
+        })
     }
-
 
     /// Fetch device information
     pub fn info(&mut self) -> Result<Info, Error> {
@@ -189,21 +193,29 @@ impl PTouch {
 
         // Check a language is available
         if languages.len() == 0 {
-            return Err(Error::NoLanguages)
+            return Err(Error::NoLanguages);
         }
 
         // Fetch information
         let language = languages[0];
-        let manufacturer = self.handle.read_manufacturer_string(language, &self.descriptor, timeout)?;
-        let product = self.handle.read_product_string(language, &self.descriptor, timeout)?;
-        let serial = self.handle.read_serial_number_string(language, &self.descriptor, timeout)?;
-        
+        let manufacturer =
+            self.handle
+                .read_manufacturer_string(language, &self.descriptor, timeout)?;
+        let product = self
+            .handle
+            .read_product_string(language, &self.descriptor, timeout)?;
+        let serial = self
+            .handle
+            .read_serial_number_string(language, &self.descriptor, timeout)?;
 
-        Ok(Info{manufacturer, product, serial})
+        Ok(Info {
+            manufacturer,
+            product,
+            serial,
+        })
     }
 
     pub fn print(&mut self, img: ()) -> Result<(), Error> {
-
         // Check image size is viable
 
         // Send setup print commands
@@ -218,11 +230,7 @@ impl PTouch {
         let mut buff = [0u8; 32];
 
         // Execute read
-        let n = self.handle.read_bulk(
-            self.stat_ep,
-            &mut buff,
-            timeout,
-        )?;
+        let n = self.handle.read_bulk(self.stat_ep, &mut buff, timeout)?;
 
         if n == 32 {
             debug!("Received raw status: {:?}", buff);
@@ -235,13 +243,8 @@ impl PTouch {
 
     /// Write to command EP (with specified timeout)
     fn write(&mut self, data: &[u8], timeout: Duration) -> Result<(), Error> {
-        
         // Execute write
-        let _n = self.handle.write_bulk(
-            self.cmd_ep,
-            &data,
-            timeout,
-        )?;
+        let _n = self.handle.write_bulk(self.cmd_ep, &data, timeout)?;
 
         // TODO: check write length?
 

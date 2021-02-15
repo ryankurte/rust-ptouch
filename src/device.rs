@@ -1,8 +1,7 @@
-
 use bitflags::bitflags;
 use strum_macros::{EnumString, ToString};
 
-bitflags::bitflags!{
+bitflags::bitflags! {
     struct Error1: u8 {
         const NO_MEDIA = 0x01;
         const CUTTER_JAM = 0x04;
@@ -11,7 +10,7 @@ bitflags::bitflags!{
     }
 }
 
-bitflags::bitflags!{
+bitflags::bitflags! {
     struct Error2: u8 {
         const WRONG_MEDIA = 0x01;
         const COVER_OPEN = 0x10;
@@ -25,7 +24,7 @@ pub enum PTouchDevice {
     #[strum(serialize = "pt-p750w")]
     PtP750W = 0x2062,
     #[strum(serialize = "pt-p710bt")]
-    PtP710Bt = 0x20af
+    PtP710Bt = 0x20af,
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -119,9 +118,7 @@ pub enum Notification {
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub enum TapeColour {
-
-}
+pub enum TapeColour {}
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum TextColour {

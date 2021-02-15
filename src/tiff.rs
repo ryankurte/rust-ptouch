@@ -1,4 +1,3 @@
-
 #[derive(Clone, Debug, PartialEq)]
 enum CompressMode {
     None(u8),
@@ -14,19 +13,12 @@ pub fn compress(data: &[u8]) -> Vec<u8> {
 
     // Perform byte-wise compression
     for i in 1..data.len() {
-        
         println!("State: {:?}", state);
 
         state = match state {
-            CompressMode::None(v) if data[i] == v => {
-                CompressMode::Repeated(v, 1)
-            },
-            CompressMode::None(v) => {
-                CompressMode::Unique(vec![v, data[i]])
-            }
-            CompressMode::Repeated(v, n) if data[i] == v => {
-                CompressMode::Repeated(v, n + 1)
-            },
+            CompressMode::None(v) if data[i] == v => CompressMode::Repeated(v, 1),
+            CompressMode::None(v) => CompressMode::Unique(vec![v, data[i]]),
+            CompressMode::Repeated(v, n) if data[i] == v => CompressMode::Repeated(v, n + 1),
             CompressMode::Repeated(v, n) => {
                 let count = 0xFF - (n as u8 - 1);
 
@@ -36,12 +28,12 @@ pub fn compress(data: &[u8]) -> Vec<u8> {
                 println!("Write 0x{:02x}: {:02x?}", count, v);
 
                 CompressMode::None(data[i])
-            },
-            CompressMode::Unique(mut v) if data[i] != v[v.len()-1] => {
+            }
+            CompressMode::Unique(mut v) if data[i] != v[v.len() - 1] => {
                 v.push(data[i]);
 
                 CompressMode::Unique(v)
-            },
+            }
             CompressMode::Unique(v) => {
                 let count = v.len() - 1;
 
@@ -66,7 +58,7 @@ pub fn compress(data: &[u8]) -> Vec<u8> {
 
             c.push(count as u8);
             c.push(v);
-        },
+        }
         CompressMode::Unique(v) => {
             let count = v.len() - 1;
 
@@ -90,15 +82,19 @@ mod test {
     #[test]
     fn test_raster_compression() {
         let uncompressed = [
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-            0x00, 0x00, 0x00, 0x00, 0x22, 0x22, 0x23, 0xBA, 
-            0xBF, 0xA2, 0x22, 0x2B ];
-        let compressed = [0xED, 0x00, 0xFF, 0x22 ,0x05, 0x23, 0xBA, 0xBF, 0xA2, 0x22, 0x2B];
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x22, 0x22, 0x23, 0xBA, 0xBF, 0xA2, 0x22, 0x2B,
+        ];
+        let compressed = [
+            0xED, 0x00, 0xFF, 0x22, 0x05, 0x23, 0xBA, 0xBF, 0xA2, 0x22, 0x2B,
+        ];
 
         let c = super::compress(&uncompressed);
 
-        assert_eq!(c, compressed, "Compressed: {:02x?} Expected: {:02x?}", &c, &compressed);
+        assert_eq!(
+            c, compressed,
+            "Compressed: {:02x?} Expected: {:02x?}",
+            &c, &compressed
+        );
     }
 }
-
