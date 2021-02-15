@@ -15,12 +15,10 @@ pub struct Display {
 impl Display {
     /// Create a new display with the provided height and minimum width
     pub fn new(y: usize, min_x: usize) -> Self {
-        let mut s = Self {
+        Self {
             y,
             data: vec![vec![0u8; y / 8]; min_x],
-        };
-
-        s
+        }
     }
 
     /// Fetch a flipped + compressed vector image for output to printer

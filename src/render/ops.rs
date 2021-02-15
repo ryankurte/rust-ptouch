@@ -1,10 +1,7 @@
 use std::str::FromStr;
 
-use log::error;
 use strum_macros::{Display, EnumString, EnumVariantNames};
 use serde::{Serialize, Deserialize};
-
-use crate::Error;
 
 /// Render operations, used to construct an image
 #[derive(Clone, PartialEq, Debug)]
@@ -12,13 +9,14 @@ use crate::Error;
 pub enum Op {
     Text { value: String, opts: TextOptions },
     Pad(usize),
-    //Barcode(BarcodeOptions),
+    Qr(String),
+    Barcode(String),
 }
 
 impl FromStr for Op {
     type Err = ();
 
-    fn from_str(s: &str) -> Result<Op, Self::Err> {
+    fn from_str(_s: &str) -> Result<Op, Self::Err> {
         unimplemented!()
     }
 }
@@ -34,11 +32,20 @@ impl Op {
     pub fn pad(columns: usize) -> Self {
         Self::Pad(columns)
     }
+
+    pub fn qr(value: &str) -> Self {
+        Self::Qr(value.to_string())
+    }
+
+    pub fn barcode(value: &str) -> Self {
+        Self::Barcode(value.to_string())
+    }
 }
+
 
 #[derive(Clone, PartialEq, Debug, Display)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "strum", derive(, EnumString, EnumVariantNames))]
+#[cfg_attr(feature = "strum", derive(EnumString, EnumVariantNames))]
 pub enum FontKind {
     Font6x6,
     Font6x8,
@@ -77,24 +84,25 @@ impl FontKind {
 }
 
 #[derive(Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TextOptions {
     pub font: FontKind,
     pub v_align: VAlign,
     pub h_align: HAlign,
 }
 
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "strum", derive(, EnumString, EnumVariantNames))]
+#[cfg_attr(feature = "strum", derive(EnumString, EnumVariantNames))]
 pub enum HAlign {
     Left,
     Centre,
     Right,
 }
 
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "strum", derive(, EnumString, EnumVariantNames))]
+#[cfg_attr(feature = "strum", derive(EnumString, EnumVariantNames))]
 pub enum VAlign {
     Top,
     Centre,

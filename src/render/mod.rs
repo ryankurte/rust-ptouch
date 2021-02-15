@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use barcoders::sym::code39::Code39;
 use structopt::StructOpt;
 
 use embedded_graphics::prelude::*;
@@ -34,7 +35,7 @@ impl Default for RenderConfig {
     fn default() -> Self {
         Self {
             min_x: 32,
-            max_x: 1024,
+            max_x: 10 * 1024,
             y: 64,
         }
     }
@@ -49,7 +50,7 @@ impl Render {
     /// Create a new render instance
     pub fn new(cfg: RenderConfig) -> Self {
         // Setup virtual display for rendering
-        let mut display = Display::new(cfg.y as usize, cfg.min_x as usize);
+        let display = Display::new(cfg.y as usize, cfg.min_x as usize);
 
         Self { cfg, display }
     }
@@ -60,6 +61,8 @@ impl Render {
             x += match operation {
                 Op::Text { value, opts } => self.render_text(x, value, opts)?,
                 Op::Pad(c) => self.pad(x, *c)?,
+                Op::Qr(v) => self.render_qrcode(x, v)?,
+                Op::Barcode(v) => self.render_barcode(x, v)?,
                 _ => unimplemented!(),
             }
         }
@@ -69,7 +72,7 @@ impl Render {
         Ok(self)
     }
 
-    fn render_text(&mut self, x: usize, value: &str, opts: &TextOptions) -> Result<usize, Error> {
+    fn render_text(&mut self, start_x: usize, value: &str, opts: &TextOptions) -> Result<usize, Error> {
         use embedded_graphics::fonts::*;
         use embedded_text::style::vertical_overdraw::Hidden;
 
@@ -80,20 +83,22 @@ impl Render {
 
         // Compute maximum line width
         let max_line_x = value
-            .split("/n")
+            .split("\n")
             .map(|line| opts.font.char_width() * line.len())
             .max()
             .unwrap();
-        let max_x = self.cfg.max_x.min(max_line_x);
+        let max_x = self.cfg.max_x.min(start_x + max_line_x);
 
         // Create textbox instance
         let tb = TextBox::new(
             value,
             Rectangle::new(
-                Point::new(x as i32, 0 as i32),
+                Point::new(start_x as i32, 0 as i32),
                 Point::new(max_x as i32, self.cfg.y as i32),
             ),
         );
+
+        println!("Textbox: {:?}", tb);
 
         #[cfg(nope)]
         let a = match opts.h_align {
@@ -211,14 +216,53 @@ impl Render {
         Ok(columns)
     }
 
-    #[cfg(nope)]
-    fn render_qrcode(&self, x: usize, value: &str, opts: &BarcodeOptions) -> Result<(), Error> {
+    fn render_qrcode(&mut self, x_start: usize, value: &str) -> Result<usize, Error> {
         // Generate QR
-        let qr = QrCode::new(value)?;
-        let img = qr.render::<Luma<u8>>().build();
+        let qr = QrCode::new(value).unwrap();
+        let img = qr.render()
+            .dark_color(image::Rgb([0, 0, 0]))
+            .light_color(image::Rgb([255, 255, 255]))
+            .quiet_zone(false)
+            .max_dimensions(self.cfg.y as u32, self.cfg.y as u32)
+            .build();
 
-        // Rescale if possible
-        while (img.height() < self.opts.max_y / 2) {}
+        // Generate offsets
+        let y_offset = (self.cfg.y as i32 - img.height() as i32) / 2;
+        let x_offset = (x_start as i32 + y_offset);
+
+        // Write to display
+        for (x, y, v) in img.enumerate_pixels() {
+            let c = match v {
+                image::Rgb([0, 0, 0]) => BinaryColor::On,
+                _ => BinaryColor::Off,
+            };
+            let p = Pixel(Point::new(x_offset + x as i32, y_offset + y as i32), c);
+            self.display.draw_pixel(p)?
+        }
+
+        Ok(img.width() as usize + x_offset as usize)
+    }
+
+    fn render_barcode(&mut self, x_start: usize, value: &str) -> Result<usize, Error> {
+        let barcode = Code39::new(value).unwrap();
+        let encoded: Vec<u8> = barcode.encode();
+
+        let x_offset = x_start as i32;
+
+        // TODO: something is not quite right here...
+        for i in 0..encoded.len() {
+            //let v = (encoded[i / 8] & ( 1 << (i % 8) ) ) == 0;
+
+            for y in 0..self.cfg.y {
+                let c = match encoded[i] != 0 {
+                    true => BinaryColor::On,
+                    false => BinaryColor::Off,
+                };
+
+                let p = Pixel(Point::new(x_offset + i as i32, y as i32), c);
+                self.display.draw_pixel(p)?
+            }
+        }
 
         unimplemented!()
     }
@@ -247,10 +291,11 @@ impl Render {
 
         let output_settings = OutputSettingsBuilder::new()
             // TODO: set theme based on tape?
-            .theme(BinaryColorTheme::OledBlue)
+            .theme(BinaryColorTheme::LcdWhite)
             .build();
 
-        Window::new("Label preview", &output_settings).show_static(&sim_display);
+        let name = format!("Label preview ({}, {})", s.width, s.height);
+        Window::new(&name, &output_settings).show_static(&sim_display);
 
         Ok(())
     }

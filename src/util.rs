@@ -44,9 +44,14 @@ fn main() -> anyhow::Result<()> {
     match &opts.command {
         Command::Preview => {
             let cfg = RenderConfig::default();
-            let ops = vec![Op::pad(16), Op::text("Hello\nWorld"), Op::pad(16)];
-            let mut r = Render::new(cfg);
 
+            let ops = vec![
+                Op::pad(16),
+                Op::qr("https://hello.world"),
+                Op::text("Hello World\nHow's it going?"), 
+                Op::pad(16)];
+            
+            let mut r = Render::new(cfg);
             r.render(&ops)?;
 
             r.show()?;

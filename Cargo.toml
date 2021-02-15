@@ -8,7 +8,7 @@ license = "MPL-2.0"
 
 [features]
 util = [ ]
-default = [ "util", "structopt" ]
+default = [ "util", "structopt", "serde", "strum" ]
 
 [dependencies]
 structopt = { version = "0.3.21", optional = true }
@@ -17,23 +17,24 @@ lazy_static = "1.4.0"
 log = "0.4.13"
 bitfield = "0.13.2"
 bitflags = "1.2.1"
-strum = "0.20.0"
+strum = { version = "0.20.0", optional = true }
 strum_macros = "0.20.1"
 anyhow = "1.0.38"
 
-
 simplelog = "0.9.0"
-fonterator = "0.9"
 qrcode = "*"
+image = "0.23.13"
+barcoders = "1.0.2"
+
 thiserror = "1.0.23"
 tempdir = "0.3.7"
 embedded-graphics = "0.6.2"
-
-embedded-graphics-simulator = "0.2.0"
-serde = { version = "1.0.123", features = [ "derive" ] }
-rusttype = "0.9.2"
-ttf-parser = "0.12.0"
 embedded-text = "0.4.0"
+embedded-graphics-simulator = "0.2.0"
+
+serde = { version = "1.0.123", features = [ "derive" ], optional = true }
+
+
 
 [[bin]]
 name = "ptouch-util"
