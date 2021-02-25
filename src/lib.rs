@@ -1,14 +1,16 @@
 use std::time::Duration;
 
-use log::{debug, error, trace};
+use commands::Commands;
+use device::Status;
+use log::{debug, error, trace, warn};
 use structopt::StructOpt;
 
 use rusb::{Context, Device, DeviceDescriptor, DeviceHandle, Direction, TransferType, UsbContext};
 
 pub mod device;
+use device::*;
 
 pub mod commands;
-pub use commands::Commands;
 
 pub mod tiff;
 
@@ -64,6 +66,12 @@ pub enum Error {
 
     #[error("Renderer error")]
     Render,
+
+    #[error("Operation timeout")]
+    Timeout,
+
+    #[error("PTouch Error ({:?} {:?})", 0, 1)]
+    PTouch(Error1, Error2),
 }
 
 impl From<rusb::Error> for Error {
@@ -128,13 +136,29 @@ impl PTouch {
         let (device, descriptor) = matches.remove(o.index);
 
         // Open device handle
-        let mut handle = device.open()?;
+        let mut handle = match device.open() {
+            Ok(v) => v,
+            Err(e) => {
+                error!("Error opening device");
+                return Err(e.into());
+            }
+        };
 
         // Reset device
-        handle.reset()?;
+        if let Err(e) = handle.reset() {
+            error!("Error resetting device handle");
+            return Err(e.into())
+        }
 
         // Locate endpoints
-        let config_desc = device.config_descriptor(0)?;
+        let config_desc = match device.config_descriptor(0) {
+            Ok(v) => v,
+            Err(e) => {
+                error!("Failed to fetch config descriptor");
+                return Err(e.into());
+            }
+        };
+
         let interface = match config_desc.interfaces().next() {
             Some(i) => i,
             None => {
@@ -167,17 +191,43 @@ impl PTouch {
             }
         };
 
-        // Set endpoint configuration
-        handle.set_active_configuration(config_desc.number())?;
+        // Detach kernel driver
+        debug!("Checking for active kernel driver");
+        match handle.kernel_driver_active(interface.number())? {
+            true => {
+                debug!("Detaching kernel driver");
+                handle.detach_kernel_driver(interface.number())?;
+            },
+            false => {
+                debug!("Kernel driver inactive");
+            },
+        }
 
-        Ok(Self {
+        debug!("Claiming interface");
+        handle.claim_interface(interface.number())?;
+
+        // Set endpoint configuration
+        #[cfg(off)]
+        if let Err(e) = handle.set_active_configuration(config_desc.number()) {
+            error!("Failed to set active configuration");
+            return Err(e.into());
+        }
+
+        let mut s = Self {
             _device: device,
             handle,
             descriptor,
             cmd_ep,
             stat_ep,
             timeout: DEFAULT_TIMEOUT,
-        })
+        };
+
+
+        s.invalidate()?;
+
+        s.init()?;
+
+        Ok(s)
     }
 
     /// Fetch device information
@@ -215,14 +265,87 @@ impl PTouch {
         })
     }
 
-    pub fn print(&mut self, img: ()) -> Result<(), Error> {
-        // Check image size is viable
+    pub fn status(&mut self) -> Result<Status, Error> {
+        // Issue status request
+        self.status_req()?;
 
-        // Send setup print commands
+        // Read status response
+        let d = self.read(self.timeout)?;
 
-        // Write out print data
+        // Convert to status object
+        let s = Status::from(d);
 
-        unimplemented!()
+        debug!("Status: {:02x?}", s);
+
+        Ok(s)
+    }
+
+    pub fn print_raw(&mut self, img: Vec<[u8; 16]>, info: &PrintInfo) -> Result<(), Error> {
+        // TODO: should we check things are compatible here?
+
+        // Set to raster mode
+        self.switch_mode(Mode::Raster)?;
+
+        // Enable status notification
+        self.set_status_notify(true)?;
+
+        // Set media type
+        self.set_print_info(info)?;
+
+        self.set_various_mode(VariousMode::AUTO_CUT)?;
+
+        self.set_advanced_mode(AdvancedMode::NO_CHAIN)?;
+
+        // Disable compression
+        self.set_compression_mode(CompressionMode::None)?;
+
+        // Check we're ready to print
+        //let s = self.status()?;
+
+        //if !s.error1.is_empty() || !s.error2.is_empty() {
+        //    debug!("Print error: {:?} {:?}", s.error1, s.error2);
+        //    return Err(Error::PTouch(s.error1, s.error2));
+        //}
+
+        // Send raster data
+        for line in img {
+            //let l = tiff::compress(&line);
+
+            self.raster_transfer(&line)?;
+
+            std::thread::sleep(Duration::from_millis(10));
+        }
+
+        // Execute print operation
+        self.print_and_feed()?;
+
+        let mut i = 0;
+
+        // Poll on print completion
+        loop {
+            if let Ok(s) = self.read_status(self.timeout) {
+                if !s.error1.is_empty() || !s.error2.is_empty() {
+                    debug!("Print error: {:?} {:?}", s.error1, s.error2);
+                    return Err(Error::PTouch(s.error1, s.error2));
+                }
+    
+                if s.phase == Phase::Printing {
+                    debug!("Started printing");
+                }
+            }
+
+            if i > 10 {
+                debug!("Print start timeout");
+                return Err(Error::Timeout);
+            }
+
+            i += 1;
+
+            std::thread::sleep(Duration::from_secs(1));
+        }
+
+
+        Ok(())
     }
 
     /// Read from status EP (with specified timeout)
@@ -232,8 +355,8 @@ impl PTouch {
         // Execute read
         let n = self.handle.read_bulk(self.stat_ep, &mut buff, timeout)?;
 
-        if n == 32 {
-            debug!("Received raw status: {:?}", buff);
+        if n != 32 {
+            return Err(Error::Timeout)
         }
 
         // TODO: parse out status?
@@ -243,10 +366,15 @@ impl PTouch {
 
     /// Write to command EP (with specified timeout)
     fn write(&mut self, data: &[u8], timeout: Duration) -> Result<(), Error> {
-        // Execute write
-        let _n = self.handle.write_bulk(self.cmd_ep, &data, timeout)?;
+        warn!("WRITE: {:02x?}", data);
 
-        // TODO: check write length?
+        // Execute write
+        let n = self.handle.write_bulk(self.cmd_ep, &data, timeout)?;
+
+        // Check write length for timeouts
+        if n != data.len() {
+            return Err(Error::Timeout)
+        }
 
         Ok(())
     }

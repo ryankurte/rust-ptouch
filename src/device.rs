@@ -2,7 +2,7 @@ use bitflags::bitflags;
 use strum_macros::{EnumString, ToString};
 
 bitflags::bitflags! {
-    struct Error1: u8 {
+    pub struct Error1: u8 {
         const NO_MEDIA = 0x01;
         const CUTTER_JAM = 0x04;
         const WEAK_BATT = 0x08;
@@ -11,7 +11,7 @@ bitflags::bitflags! {
 }
 
 bitflags::bitflags! {
-    struct Error2: u8 {
+    pub struct Error2: u8 {
         const WRONG_MEDIA = 0x01;
         const COVER_OPEN = 0x10;
         const OVERHEAT = 0x20;
@@ -50,18 +50,51 @@ pub enum MediaWidth {
     Hs18mm = 418,
     /// 24mm HeatShrink Tube
     Hs24mm = 419,
+
+    /// Unknown media width
+    Unknown = 0xFFFF,
+}
+
+impl From<(MediaKind, u8)> for MediaWidth {
+    fn from(v: (MediaKind, u8)) -> Self {
+        use MediaKind::*;
+        use MediaWidth::*;
+
+        match v {
+            (LaminatedTape, 6) | (NonLaminatedTape, 6) => Tze6mm,
+            (LaminatedTape, 9) | (NonLaminatedTape, 9) => Tze9mm,
+            (LaminatedTape, 12) | (NonLaminatedTape, 12) => Tze12mm,
+            (LaminatedTape, 18) | (NonLaminatedTape, 18) => Tze18mm,
+            (LaminatedTape, 24) | (NonLaminatedTape, 24) => Tze24mm,
+            (HeatShrinkTube, 6) => Hs6mm,
+            (HeatShrinkTube, 9) => Hs9mm,
+            (HeatShrinkTube, 12)  => Hs12mm,
+            (HeatShrinkTube, 18)  => Hs18mm,
+            (HeatShrinkTube, 24)  => Hs24mm,
+            _ => Unknown,
+        }
+    }
 }
 
 impl MediaWidth {
-    pub fn width(&self) -> u8 {
+    /// Fetch media area (left margin, print area, right margin)
+    pub fn area(&self) -> (u8, u8, u8) {
         use MediaWidth::*;
 
         match self {
-            Tze6mm | Hs6mm => 6,
-            Tze9mm | Hs9mm => 9,
-            Tze12mm | Hs12mm => 12,
-            Tze18mm | Hs18mm => 18,
-            Tze24mm | Hs24mm => 24,
+            Tze6mm => (52, 32, 52),
+            Tze9mm => (39, 50, 39),
+            Tze12mm => (29, 70, 29),
+            Tze18mm => (8, 112, 8),
+            Tze24mm => (0, 128, 0),
+
+            Hs6mm => (50, 28, 50),
+            Hs9mm => (40, 48, 40),
+            Hs12mm => (31, 66, 31),
+            Hs18mm => (11, 106, 11),
+            Hs24mm => (0, 128, 0),
+
+            Unknown => (0, 0, 0)
         }
     }
 }
@@ -76,6 +109,39 @@ pub enum MediaKind {
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
+pub enum Phase {
+    Editing,
+    Printing,
+    Unknown,
+}
+
+impl From<u8> for Phase {
+    fn from(v: u8) -> Self {
+        use Phase::*;
+
+        match v {
+            0 => Editing,
+            1 => Printing,
+            _ => Unknown
+        }
+    }
+}
+
+impl From<u8> for MediaKind {
+    fn from(v: u8) -> Self {
+        match v {
+           0x00 => MediaKind::None,
+           0x01 => MediaKind::LaminatedTape,
+           0x03 => MediaKind::NonLaminatedTape,
+           0x11 => MediaKind::HeatShrinkTube,
+           0xFF => MediaKind::IncompatibleTape,
+           _ => MediaKind::IncompatibleTape,
+       }
+    }
+}
+
+
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum DeviceStatus {
     Reply = 0x00,
     Completed = 0x01,
@@ -84,6 +150,25 @@ pub enum DeviceStatus {
     TurnedOff = 0x04,
     Notification = 0x05,
     PhaseChange = 0x06,
+
+    Unknown = 0xFF,
+}
+
+impl From<u8> for DeviceStatus {
+    fn from(v: u8) -> Self {
+        use DeviceStatus::*;
+
+        match v {
+            0x00 => Reply,
+            0x01 => Completed,
+            0x02 => Error,
+            0x03 => ExitIF,
+            0x04 => TurnedOff,
+            0x05 => Notification,
+            0x06 => PhaseChange,
+            _ => Unknown,
+       }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -118,7 +203,73 @@ pub enum Notification {
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub enum TapeColour {}
+pub enum TapeColour {
+    White = 0x01,
+    Other = 0x02,
+    ClearBlack = 0x03,
+    Red = 0x04,
+    Blue = 0x05,
+    Black = 0x08,
+    ClearWhite = 0x09,
+    MatteWhite = 0x20,
+    MatteClear = 0x21,
+    MatteSilver = 0x22,
+    SatinGold = 0x23,
+    SatinSilver = 0x24,
+    BlueD = 0x30,
+    RedD = 0x31,
+    FluroOrange=0x40,
+    FluroYellow=0x41,
+    BerryPinkS = 0x50,
+    LightGrayS = 0x51,
+    LimeGreenS = 0x52,
+    YellowF = 0x60,
+    PinkF = 0x61,
+    BlueF = 0x62,
+    WhiteHst = 0x70,
+    WhiteFlexId = 0x90,
+    YellowFlexId = 0x91,
+    Cleaning = 0xF0,
+    Stencil = 0xF1,
+    Incompatible = 0xFF,
+}
+
+impl From<u8> for TapeColour {
+    fn from(v: u8) -> TapeColour {
+        use TapeColour::*;
+
+        match v {
+            0x01 => White,
+            0x02 => Other,
+            0x03 => ClearBlack,
+            0x04 => Red,
+            0x05 => Blue,
+            0x08 => Black,
+            0x09 => ClearWhite,
+            0x20 => MatteWhite,
+            0x21 => MatteClear,
+            0x22 => MatteSilver,
+            0x23 => SatinGold,
+            0x24 => SatinSilver,
+            0x30 => BlueD,
+            0x31 => RedD,
+            0x40 => FluroOrange,
+            0x41 => FluroYellow,
+            0x50 => BerryPinkS,
+            0x51 => LightGrayS,
+            0x52 => LimeGreenS,
+            0x60 => YellowF,
+            0x61 => PinkF,
+            0x62 => BlueF,
+            0x70 => WhiteHst,
+            0x90 => WhiteFlexId,
+            0x91 => YellowFlexId,
+            0xF0 => Cleaning,
+            0xF1 => Stencil,
+            0xFF | _ => Incompatible,
+        }
+    }
+}
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum TextColour {
@@ -134,6 +285,60 @@ pub enum TextColour {
     Incompatible = 0xFF,
 }
 
+impl From<u8> for TextColour {
+    fn from(v: u8) -> TextColour {
+        use TextColour::*;
+        
+        match v {
+            0x01 => White,
+            0x04 => Red,
+            0x05 => Blue,
+            0x08 => Black,
+            0x0A => Gold,
+            0x62 => BlueF,
+            0xf0 => Cleaning,
+            0xF1 => Stencil,
+            0x02 => Other,
+            0xFF | _=> Incompatible,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct Status {
+    pub model: u8,
+
+    pub error1: Error1,
+    pub error2: Error2,
+
+    pub media_width: u8,
+    pub media_kind: MediaKind,
+
+    pub status_type: DeviceStatus,
+    pub phase: Phase,
+
+    pub tape_colour: TapeColour,
+    pub text_colour: TextColour,
+}
+
+impl From<[u8; 32]> for Status {
+
+    fn from(r: [u8; 32]) -> Self {
+        Self {
+            model: r[0],
+            error1: Error1::from_bits_truncate(r[8]),
+            error2: Error2::from_bits_truncate(r[9]),
+            media_width: r[10],
+            media_kind: MediaKind::from(r[11]),
+
+            status_type: DeviceStatus::from(r[18]),
+            phase: Phase::from(r[20]),
+            tape_colour: TapeColour::from(r[24]),
+            text_colour: TextColour::from(r[25]),
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Debug)]
 pub struct PrintInfo {
     /// Media kind
@@ -146,6 +351,18 @@ pub struct PrintInfo {
     pub raster_no: u32,
     /// Enable print recovery
     pub recover: bool,
+}
+
+impl Default for PrintInfo {
+    fn default() -> Self {
+        Self {
+            kind: None,
+            width: None,
+            length: Some(0),
+            raster_no: 0,
+            recover: true,
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]

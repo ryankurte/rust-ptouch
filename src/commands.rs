@@ -1,8 +1,10 @@
 use std::time::Duration;
 
-use crate::{device::CompressionMode, Error, PTouch};
+use image::EncodableLayout;
+use log::{trace, debug};
 
-use crate::device::{AdvancedMode, Mode, PrintInfo, VariousMode};
+use crate::{Error, PTouch, device::Status};
+use crate::device::{AdvancedMode, Mode, PrintInfo, VariousMode, CompressionMode};
 
 /// Raw command API for the PTouch device
 pub trait Commands {
@@ -10,9 +12,11 @@ pub trait Commands {
 
     fn init(&mut self) -> Result<(), Error>;
 
+    fn invalidate(&mut self) -> Result<(), Error>;
+
     fn status_req(&mut self) -> Result<(), Error>;
 
-    fn read_status(&mut self, timeout: Duration) -> Result<(), Error>;
+    fn read_status(&mut self, timeout: Duration) -> Result<Status, Error>;
 
     fn switch_mode(&mut self, mode: Mode) -> Result<(), Error>;
 
@@ -48,16 +52,22 @@ impl Commands for PTouch {
         self.write(&[0x1b, 0x40], self.timeout)
     }
 
+    fn invalidate(&mut self) -> Result<(), Error> {
+        self.write(&[0u8; 100], self.timeout)
+    }
+
     fn status_req(&mut self) -> Result<(), Error> {
         self.write(&[0x1b, 0x69, 0x53], self.timeout)
     }
 
-    fn read_status(&mut self, timeout: Duration) -> Result<(), Error> {
-        let _status_raw = self.read(timeout);
+    fn read_status(&mut self, timeout: Duration) -> Result<Status, Error> {
+        let status_raw = self.read(timeout)?;
 
-        // TODO: parse out status object
+        let status = Status::from(status_raw);
 
-        unimplemented!()
+        debug!("Status: {:?} ({:02x?})", status, &status_raw);
+
+        Ok(status)
     }
 
     fn switch_mode(&mut self, mode: Mode) -> Result<(), Error> {
@@ -96,8 +106,8 @@ impl Commands for PTouch {
             buff[6] = *l as u8;
         }
 
-        let raster_bytes = info.raster_no.to_be_bytes();
-        &buff[7..10].copy_from_slice(&raster_bytes);
+        let raster_bytes = info.raster_no.to_le_bytes();
+        &buff[7..10].copy_from_slice(&raster_bytes[..3]);
 
         if info.recover {
             buff[3] |= 0x80;
@@ -136,20 +146,26 @@ impl Commands for PTouch {
         buff[1] = (data.len() & 0xFF) as u8;
         buff[2] = (data.len() >> 8) as u8;
 
-        (&mut buff[3..]).copy_from_slice(data);
+        (&mut buff[3..3+data.len()]).copy_from_slice(data);
 
-        self.write(&buff, self.timeout)
+        trace!("Raster transfer: {:02x?}", &buff[..3+data.len()]);
+
+        self.write(&buff[..3+data.len()], self.timeout)
     }
 
     fn raster_zero(&mut self) -> Result<(), Error> {
+        debug!("Raster zero line");
+        
         self.write(&[0x5a], self.timeout)
     }
 
     fn print(&mut self) -> Result<(), Error> {
+        debug!("Print command");
         self.write(&[0x0c], self.timeout)
     }
 
     fn print_and_feed(&mut self) -> Result<(), Error> {
+        debug!("Print feed command");
         self.write(&[0x1a], self.timeout)
     }
 }

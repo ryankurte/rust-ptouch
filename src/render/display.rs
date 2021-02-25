@@ -9,15 +9,22 @@ use crate::Error;
 /// In memory display for drawing / rendering data
 pub struct Display {
     y: usize,
+    y_max: usize,
     data: Vec<Vec<u8>>,
 }
 
 impl Display {
     /// Create a new display with the provided height and minimum width
     pub fn new(y: usize, min_x: usize) -> Self {
+        let mut y_max = y;
+        while y_max % 8 != 0 {
+            y_max += 1;
+        }
+
         Self {
             y,
-            data: vec![vec![0u8; y / 8]; min_x],
+            y_max,
+            data: vec![vec![0u8; y_max / 8]; min_x],
         }
     }
 
@@ -58,6 +65,32 @@ impl Display {
         Ok(buff)
     }
 
+
+    pub fn raster(&self, margins: (u8, u8, u8)) -> Result<Vec<[u8; 16]>, anyhow::Error> {
+        let s = self.size();
+
+        println!("Raster display size: {:?} output area: {:?}", s, margins);
+        if s.height != margins.1 as u32 {
+            return Err(anyhow::anyhow!("Raster display and output size differ ({:?}, {:?})", s, margins));
+        }
+
+        let mut buff = vec![[0u8; 16]; s.width as usize];
+
+        for x in 0..(s.width as usize) {
+            for y in 0..(s.height as usize) {
+                let p = self.get(x, y)?;
+
+                let y_offset = y + margins.0 as usize;
+
+                if p {
+                    buff[x][y_offset / 8] |= 1 << (y_offset % 8);
+                }
+            }
+        }
+
+        Ok(buff)
+    }
+
     /// Set a value by X/Y location
     fn set(&mut self, x: usize, y: usize, v: bool) -> Result<(), Error> {
         // Check Y bounds
@@ -67,7 +100,7 @@ impl Display {
 
         // Extend buffer in X direction
         while x >= self.data.len() {
-            self.data.push(vec![0u8; self.y / 8])
+            self.data.push(vec![0u8; self.y_max / 8])
         }
 
         // Fetch pixel storage
@@ -83,7 +116,7 @@ impl Display {
     }
 
     /// Fetch a display value by X/Y location
-    fn get(&self, x: usize, y: usize) -> Result<bool, Error> {
+    pub fn get(&self, x: usize, y: usize) -> Result<bool, Error> {
         // Check Y bounds
         if y > self.y {
             return Err(Error::Render);
@@ -118,5 +151,82 @@ impl DrawTarget<BinaryColor> for Display {
 
     fn size(&self) -> Size {
         Size::new(self.data.len() as u32, self.y as u32)
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    #[test]
+    fn test_display() {
+        let mut d = Display::new(8, 1);
+        d.set(0, 0, true).unwrap();
+        assert_eq!(d.data, vec![vec![0b0000_0001]]);
+        assert_eq!(
+            d.image().unwrap(),
+            vec![
+                0b0000_0001,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+            ]
+        );
+
+        let mut d = Display::new(8, 1);
+        d.set(1, 0, true).unwrap();
+        assert_eq!(d.data, vec![vec![0b0000_0000], vec![0b0000_0001]]);
+        assert_eq!(
+            d.image().unwrap(),
+            vec![
+                0b0000_0010,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+            ]
+        );
+
+        let mut d = Display::new(8, 1);
+        d.set(0, 1, true).unwrap();
+        assert_eq!(d.data, vec![vec![0b0000_0010]]);
+        assert_eq!(
+            d.image().unwrap(),
+            vec![
+                0b0000_0000,
+                0b0000_0001,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+                0b0000_0000,
+            ]
+        );
+    }
+    #[test]
+    fn test_raster() {
+        let mut d = Display::new(112, 1);
+        d.set(0, 0, true).unwrap();
+        d.set(1, 1, true).unwrap();
+        d.set(2, 2, true).unwrap();
+
+
+        assert_eq!(
+            d.raster((8, 112, 8)).unwrap(),
+            vec![
+                [0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, ],
+                [0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, ],
+                [0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, ],
+            ]
+        );
     }
 }

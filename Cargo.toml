@@ -33,6 +33,7 @@ embedded-text = "0.4.0"
 embedded-graphics-simulator = "0.2.0"
 
 serde = { version = "1.0.123", features = [ "derive" ], optional = true }
+bitvec = "0.21.0"
 
 
 

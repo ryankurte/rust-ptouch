@@ -13,8 +13,6 @@ pub fn compress(data: &[u8]) -> Vec<u8> {
 
     // Perform byte-wise compression
     for i in 1..data.len() {
-        println!("State: {:?}", state);
-
         state = match state {
             CompressMode::None(v) if data[i] == v => CompressMode::Repeated(v, 1),
             CompressMode::None(v) => CompressMode::Unique(vec![v, data[i]]),
@@ -24,8 +22,6 @@ pub fn compress(data: &[u8]) -> Vec<u8> {
 
                 c.push(count as u8);
                 c.push(v);
-
-                println!("Write 0x{:02x}: {:02x?}", count, v);
 
                 CompressMode::None(data[i])
             }
@@ -39,8 +35,6 @@ pub fn compress(data: &[u8]) -> Vec<u8> {
 
                 c.push(count as u8);
                 c.extend_from_slice(&v[..count]);
-
-                println!("Write 0x{:02x}: {:02x?}", count, &v[..count]);
 
                 CompressMode::Repeated(data[i], 2)
             }

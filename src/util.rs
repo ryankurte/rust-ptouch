@@ -2,10 +2,7 @@ use log::debug;
 use simplelog::{LevelFilter, TermLogger, TerminalMode};
 use structopt::StructOpt;
 
-use ptouch::{
-    render::{Op, Render, RenderConfig},
-    Filter, PTouch,
-};
+use ptouch::{Filter, PTouch, device::{MediaWidth, PrintInfo}, render::{Op, Render, RenderConfig}};
 
 #[derive(Clone, Debug, PartialEq, StructOpt)]
 pub struct Options {
@@ -24,8 +21,17 @@ pub enum Command {
     // Fetch printer info
     Info,
 
+    // Fetch printer status
+    Status,
+
     // Render a print preview
     Preview,
+
+    // Placeholder to preview rendering on configured tape
+    Preview2,
+
+    // Print data!
+    Print,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -52,6 +58,7 @@ fn main() -> anyhow::Result<()> {
                 Op::pad(16)];
             
             let mut r = Render::new(cfg);
+
             r.render(&ops)?;
 
             r.show()?;
@@ -71,7 +78,17 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    debug!("Device connected!");
+    debug!("Device connected! reading status");
+
+    let status = ptouch.status()?;
+    let media = MediaWidth::from((status.media_kind, status.media_width));
+
+    debug!("Status: {:?} media: {:?}", status, media);
+
+    let render_cfg = RenderConfig{
+        y: media.area().1 as usize,
+        ..Default::default()
+    };
 
     // TODO: do things with the printer...
 
@@ -79,7 +96,45 @@ fn main() -> anyhow::Result<()> {
         Command::Info => {
             let i = ptouch.info()?;
             println!("Info: {:?}", i);
-        }
+        },
+        Command::Status => {
+            println!("Status: {:?}", status);
+        },
+        Command::Preview2 => {
+            let ops = vec![
+                Op::pad(16),
+                Op::qr("https://hello.world"),
+                Op::text("Hello World\nHow's it going?"), 
+                Op::pad(16)];
+            
+            let mut r = Render::new(render_cfg);
+
+            r.render(&ops)?;
+
+            r.show()?;
+        },
+        Command::Print => {
+            let ops = vec![
+                Op::pad(16),
+                Op::qr("https://hello.world"),
+                Op::text("Hello World\nHow's it going?"), 
+                Op::pad(16)];
+            
+            let mut r = Render::new(render_cfg);
+
+            r.render(&ops)?;
+
+            let data = r.raster(media.area())?;
+
+            let info = PrintInfo {
+                width: Some(status.media_width),
+                length: Some(0),
+                raster_no: data.len() as u32,
+                ..Default::default()
+            };
+            ptouch.print_raw(data, &info)?;
+
+        },
         _ => (),
     }
 

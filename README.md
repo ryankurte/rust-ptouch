@@ -5,8 +5,8 @@ Brother P-Touch Label-Maker Raster Driver for `PT-E550W/P750W/P710BT` devices.
 
 ## Status
 
-[![GitHub tag](https://img.shields.io/github/tag/rust-iot/rust-ptouch.svg)](https://github.com/rust-iot/rust-ptouch)
-![Build Status](https://github.com/rust-iot/rust-ptouch/workflows/Rust/badge.svg)
+[![GitHub tag](https://img.shields.io/github/tag/ryankurte/rust-ptouch.svg)](https://github.com/ryankurte/rust-ptouch)
+![Build Status](https://github.com/ryankurte/rust-ptouch/workflows/Rust/badge.svg)
 [![Crates.io](https://img.shields.io/crates/v/ptouch.svg)](https://crates.io/crates/ptouch)
 [![Docs.rs](https://docs.rs/ptouch/badge.svg)](https://docs.rs/ptouch)
 

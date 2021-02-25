@@ -24,11 +24,11 @@ pub use ops::*;
 #[derive(Clone, PartialEq, Debug, StructOpt)]
 pub struct RenderConfig {
     /// Image minimum X size
-    min_x: usize,
+    pub min_x: usize,
     /// Image maximum X size
-    max_x: usize,
+    pub max_x: usize,
     /// Image Y size
-    y: usize,
+    pub y: usize,
 }
 
 impl Default for RenderConfig {
@@ -271,6 +271,10 @@ impl Render {
         unimplemented!()
     }
 
+    pub fn raster(&self, margins: (u8, u8, u8)) -> Result<Vec<[u8; 16]>, anyhow::Error> {
+        self.display.raster(margins)
+    }
+
     /// Show the rendered image (note that this blocks until the window is closed)
     pub fn show(&self) -> Result<(), anyhow::Error> {
         // Fetch rendered size
@@ -305,62 +309,5 @@ impl Render {
     }
 }
 
-#[cfg(test)]
-mod test {
 
-    use super::*;
 
-    #[test]
-    fn test_display() {
-        let mut d = Display::new(8);
-        d.set(0, 0, true).unwrap();
-        assert_eq!(d.data, vec![vec![0b0000_0001]]);
-        assert_eq!(
-            d.image().unwrap(),
-            vec![
-                0b0000_0001,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-            ]
-        );
-
-        let mut d = Display::new(8);
-        d.set(1, 0, true).unwrap();
-        assert_eq!(d.data, vec![vec![0b0000_0000], vec![0b0000_0001]]);
-        assert_eq!(
-            d.image().unwrap(),
-            vec![
-                0b0000_0010,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-            ]
-        );
-
-        let mut d = Display::new(8);
-        d.set(0, 1, true).unwrap();
-        assert_eq!(d.data, vec![vec![0b0000_0010]]);
-        assert_eq!(
-            d.image().unwrap(),
-            vec![
-                0b0000_0000,
-                0b0000_0001,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-                0b0000_0000,
-            ]
-        );
-    }
-}
