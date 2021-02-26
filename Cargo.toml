@@ -12,7 +12,7 @@ default = [ "util", "structopt", "serde", "strum" ]
 
 [dependencies]
 structopt = { version = "0.3.21", optional = true }
-rusb = "0.7.0"
+rusb = "0.8.0"
 lazy_static = "1.4.0"
 log = "0.4.13"
 bitfield = "0.13.2"
