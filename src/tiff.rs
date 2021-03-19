@@ -71,6 +71,33 @@ pub fn compress(data: &[u8]) -> Vec<u8> {
     c
 }
 
+pub fn uncompress(data: &[u8]) -> Vec<u8> {
+    let mut u = vec![];
+    let mut i: usize = 0;
+
+    loop {
+        let d = data[i] as i8;
+
+        if d < 0 {
+            // -ve indicates repeated chars
+            let mut r = vec![data[i+1]; (-d+1) as usize];
+            u.append(&mut r);
+            i += 2;
+        } else {
+            // +ve indicates literal sequence
+            let c = d as usize;
+            u.extend_from_slice(&data[i+1..i+c+2]);
+            i += c + 2;
+        }
+
+        if i >= data.len() {
+            break;
+        }
+    }
+
+    return u
+}
+
 #[cfg(test)]
 mod test {
     #[test]
@@ -90,5 +117,24 @@ mod test {
             "Compressed: {:02x?} Expected: {:02x?}",
             &c, &compressed
         );
+
+        let d = super::uncompress(&compressed);
+
+        assert_eq!(
+            d, uncompressed,
+            "Uncompressed: {:02x?} Expected: {:02x?}",
+            &d, &uncompressed
+        );
+    }
+
+    #[test]
+    fn test_example() {
+        let example = [
+            0xf6, 0x00, 0x04, 0x16, 0x99, 0x6c, 0x98, 0x6c
+        ];
+
+        let d = super::uncompress(&example);
+
+        assert_eq!(&d, &[]);
     }
 }

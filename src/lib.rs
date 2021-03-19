@@ -280,24 +280,35 @@ impl PTouch {
         Ok(s)
     }
 
-    pub fn print_raw(&mut self, img: Vec<[u8; 16]>, info: &PrintInfo) -> Result<(), Error> {
+    pub fn print_raw(&mut self, data: Vec<[u8; 16]>, info: &PrintInfo) -> Result<(), Error> {
         // TODO: should we check things are compatible here?
 
-        // Set to raster mode
+
+        // Print sequence from raster guide Section 2.1
+        // 1. Set to raster mode
         self.switch_mode(Mode::Raster)?;
 
-        // Enable status notification
+        // 2. Enable status notification
         self.set_status_notify(true)?;
 
-        // Set media type
+        // 3. Set print information (media type etc.)
         self.set_print_info(info)?;
 
+        // 4. Set various mode settings
         self.set_various_mode(VariousMode::AUTO_CUT)?;
 
+        // 5. Specify page number in "cut each * labels"
+        // Note this is not supported on the PT-P710BT
+
+        // 6. Set advanced mode settings
         self.set_advanced_mode(AdvancedMode::NO_CHAIN)?;
 
-        // Disable compression
-        self.set_compression_mode(CompressionMode::None)?;
+        // 7. Specify margin amount
+        // TODO: based on what?
+        self.set_margin(14)?;
+
+        // 8. Set compression mode
+        self.set_compression_mode(CompressionMode::Tiff)?;
 
         // Check we're ready to print
         //let s = self.status()?;
@@ -307,14 +318,44 @@ impl PTouch {
         //    return Err(Error::PTouch(s.error1, s.error2));
         //}
 
-        // Send raster data
-        for line in img {
-            //let l = tiff::compress(&line);
-
-            self.raster_transfer(&line)?;
-
-            std::thread::sleep(Duration::from_millis(10));
+        #[cfg(nope)]
+        for i in 0..3 {
+            self.raster_zero()?;
         }
+
+        // Send raster data
+        for line in data {
+            let l = tiff::compress(&line);
+
+            self.raster_transfer(&l)?;
+        }
+
+        #[cfg(nope)]
+        for i in 0..3 {
+            self.raster_zero()?;
+        }
+
+        // TODO: looks like 2 bytes of raster data, then a lot of empty lines, then some uncompressed data and some more empty lines?
+        // It doesn't _appear_ that there is a further raster header after the initial one
+        // so the raster_number _must_ be used to infer when the buffer is filled?
+        // 2 bytes raster, seems invalid, how long could this be? one line?
+        // (4 * 16) - 1 = 47 lines clear
+        // 16 bytes uncompressed, one line
+        // (5 * 16) + 8 + 3 = 75 lines clear
+        let _example = [
+            0x47, 0x02, 0x00, 0x51, // 
+            0x00, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+            0xf6, 0x00, 0x04, 0x16, 0x99, 0x6c, 0x98, 0x6c, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+            0x5a, 0x5a,
+        ];
 
         // Execute print operation
         self.print_and_feed()?;
@@ -329,13 +370,18 @@ impl PTouch {
                     return Err(Error::PTouch(s.error1, s.error2));
                 }
     
-                if s.phase == Phase::Printing {
+                if s.status_type == DeviceStatus::PhaseChange {
                     debug!("Started printing");
+                }
+
+                if s.status_type == DeviceStatus::Completed {
+                    debug!("Print completed");
+                    break;
                 }
             }
 
             if i > 10 {
-                debug!("Print start timeout");
+                debug!("Print timeout");
                 return Err(Error::Timeout);
             }
 

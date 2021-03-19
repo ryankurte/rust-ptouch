@@ -86,6 +86,8 @@ impl Commands for PTouch {
     fn set_print_info(&mut self, info: &PrintInfo) -> Result<(), Error> {
         let mut buff = [0u8; 13];
 
+        debug!("Set print info: {:?}", info);
+
         // Command header
         buff[0] = 0x1b;
         buff[1] = 0x69;
@@ -107,7 +109,7 @@ impl Commands for PTouch {
         }
 
         let raster_bytes = info.raster_no.to_le_bytes();
-        &buff[7..10].copy_from_slice(&raster_bytes[..3]);
+        &buff[7..11].copy_from_slice(&raster_bytes);
 
         if info.recover {
             buff[3] |= 0x80;
@@ -117,14 +119,20 @@ impl Commands for PTouch {
     }
 
     fn set_various_mode(&mut self, mode: VariousMode) -> Result<(), Error> {
+        debug!("Set various mode: {:?}", mode);
+
         self.write(&[0x1b, 0x69, 0x4d, mode.bits()], self.timeout)
     }
 
     fn set_advanced_mode(&mut self, mode: AdvancedMode) -> Result<(), Error> {
+        debug!("Set advanced mode: {:?}", mode);
+
         self.write(&[0x1b, 0x69, 0x4b, mode.bits()], self.timeout)
     }
 
     fn set_margin(&mut self, dots: u16) -> Result<(), Error> {
+        debug!("Set margin: {:?}", dots);
+
         self.write(
             &[0x1b, 0x69, 0x64, dots as u8, (dots >> 8) as u8],
             self.timeout,
@@ -132,17 +140,21 @@ impl Commands for PTouch {
     }
 
     fn set_page_no(&mut self, no: u8) -> Result<(), Error> {
+        debug!("Set page no: {:?}", no);
+
         self.write(&[0x1b, 0x69, 0x41, no], self.timeout)
     }
 
     fn set_compression_mode(&mut self, mode: CompressionMode) -> Result<(), Error> {
+        debug!("Set compression mode: {:?}", mode);
+
         self.write(&[0x4D, mode as u8], self.timeout)
     }
 
     fn raster_transfer(&mut self, data: &[u8]) -> Result<(), Error> {
         let mut buff = vec![0u8; data.len() + 3];
 
-        buff[0] = 0x46;
+        buff[0] = 0x47;
         buff[1] = (data.len() & 0xFF) as u8;
         buff[2] = (data.len() >> 8) as u8;
 

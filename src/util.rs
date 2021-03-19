@@ -114,6 +114,8 @@ fn main() -> anyhow::Result<()> {
             r.show()?;
         },
         Command::Print => {
+            #[cfg(nope)]
+            {
             let ops = vec![
                 Op::pad(16),
                 Op::qr("https://hello.world"),
@@ -125,6 +127,12 @@ fn main() -> anyhow::Result<()> {
             r.render(&ops)?;
 
             let data = r.raster(media.area())?;
+            }
+
+            let data = vec![
+                [0xFF; 16],
+                [0xFF; 16],
+            ];
 
             let info = PrintInfo {
                 width: Some(status.media_width),

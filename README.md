@@ -15,3 +15,4 @@ Brother P-Touch Label-Maker Raster Driver for `PT-E550W/P750W/P710BT` devices.
 
 - https://support.brother.com/g/b/manualtop.aspx?c=eu_ot&lang=en&prod=p710bteuk
 - https://download.brother.com/welcome/docp100064/cv_pte550wp750wp710bt_eng_raster_101.pdf
+- https://github.com/piksel/pytouch-cube
