@@ -7,8 +7,8 @@ edition = "2018"
 license = "MPL-2.0"
 
 [features]
-util = [ ]
-default = [ "util", "structopt", "serde", "strum" ]
+util = [ "toml", "structopt", "strum", "serde" ]
+default = [ "util" ]
 
 [dependencies]
 structopt = { version = "0.3.21", optional = true }
@@ -28,12 +28,15 @@ barcoders = "1.0.2"
 
 thiserror = "1.0.23"
 tempdir = "0.3.7"
+
 embedded-graphics = "0.6.2"
 embedded-text = "0.4.0"
+# TODO: make preview optional
 embedded-graphics-simulator = "0.2.0"
 
 serde = { version = "1.0.123", features = [ "derive" ], optional = true }
 bitvec = "0.21.0"
+toml = { version = "0.5.8", optional = true }
 
 
 

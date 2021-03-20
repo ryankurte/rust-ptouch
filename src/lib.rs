@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use commands::Commands;
 use device::Status;
-use log::{debug, error, trace, warn};
+use log::{trace, debug, error};
 use structopt::StructOpt;
 
 use rusb::{Context, Device, DeviceDescriptor, DeviceHandle, Direction, TransferType, UsbContext};
@@ -11,6 +11,8 @@ pub mod device;
 use device::*;
 
 pub mod commands;
+
+pub mod bitmap;
 
 pub mod tiff;
 
@@ -30,10 +32,10 @@ pub struct PTouch {
 pub const BROTHER_VID: u16 = 0x04F9;
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_millis(500);
 
-/// Filter for selecting a specific PTouch device
+/// Options for connecting to a PTouch device
 #[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "structopt", derive(StructOpt))]
-pub struct Filter {
+pub struct Options {
     #[cfg_attr(feature = "structopt", structopt(long, default_value = "pt-p710bt"))]
     /// Label maker device kind
     pub device: device::PTouchDevice,
@@ -41,6 +43,18 @@ pub struct Filter {
     #[cfg_attr(feature = "structopt", structopt(long, default_value = "0"))]
     /// Index (if multiple devices are connected)
     pub index: usize,
+
+    #[cfg_attr(feature = "structopt", structopt(long, hidden = true))]
+    /// Do not reset the device on connect
+    pub no_reset: bool,
+
+    #[cfg_attr(feature = "structopt", structopt(long, hidden = true))]
+    /// (DEBUG) Do not claim USB interface on connect
+    pub usb_no_claim: bool,
+
+    #[cfg_attr(feature = "structopt", structopt(long, hidden = true))]
+    /// (DEBUG) Do not detach from kernel drivers on connect
+    pub usb_no_detach: bool,
 }
 
 // Lazy initialised libusb context
@@ -80,6 +94,7 @@ impl From<rusb::Error> for Error {
     }
 }
 
+/// Device information object
 #[derive(Clone, Debug, PartialEq)]
 pub struct Info {
     pub manufacturer: String,
@@ -89,12 +104,12 @@ pub struct Info {
 
 impl PTouch {
     /// Create a new PTouch driver with the provided USB options
-    pub fn new(o: &Filter) -> Result<Self, Error> {
+    pub fn new(o: &Options) -> Result<Self, Error> {
         Self::new_with_context(o, &CONTEXT)
     }
 
     /// Create a new PTouch driver with the provided USB options and rusb::Context
-    pub fn new_with_context(o: &Filter, context: &Context) -> Result<Self, Error> {
+    pub fn new_with_context(o: &Options, context: &Context) -> Result<Self, Error> {
         // List available devices
         let devices = context.devices()?;
 
@@ -122,7 +137,7 @@ impl PTouch {
 
         // Check index is valid
         if matches.len() < o.index || matches.len() == 0 {
-            error!(
+            debug!(
                 "Device index ({}) exceeds number of discovered devices ({})",
                 o.index,
                 matches.len()
@@ -139,14 +154,14 @@ impl PTouch {
         let mut handle = match device.open() {
             Ok(v) => v,
             Err(e) => {
-                error!("Error opening device");
+                debug!("Error opening device");
                 return Err(e.into());
             }
         };
 
         // Reset device
         if let Err(e) = handle.reset() {
-            error!("Error resetting device handle");
+            debug!("Error resetting device handle");
             return Err(e.into())
         }
 
@@ -154,7 +169,7 @@ impl PTouch {
         let config_desc = match device.config_descriptor(0) {
             Ok(v) => v,
             Err(e) => {
-                error!("Failed to fetch config descriptor");
+                debug!("Failed to fetch config descriptor");
                 return Err(e.into());
             }
         };
@@ -162,7 +177,7 @@ impl PTouch {
         let interface = match config_desc.interfaces().next() {
             Some(i) => i,
             None => {
-                error!("No interfaces found");
+                debug!("No interfaces found");
                 return Err(Error::InvalidEndpoints);
             }
         };
@@ -186,33 +201,42 @@ impl PTouch {
         let (cmd_ep, stat_ep) = match (cmd_ep, stat_ep) {
             (Some(cmd), Some(stat)) => (cmd, stat),
             _ => {
-                error!("Failed to locate command and status endpoints");
+                debug!("Failed to locate command and status endpoints");
                 return Err(Error::InvalidEndpoints);
             }
         };
 
         // Detach kernel driver
+        // TODO: this is usually not supported on all libusb platforms
+        // for now this is enabled through hidden config options...
+        // needs testing and a cfg guard as appropriate
         debug!("Checking for active kernel driver");
         match handle.kernel_driver_active(interface.number())? {
             true => {
-                debug!("Detaching kernel driver");
-                handle.detach_kernel_driver(interface.number())?;
+                if !o.usb_no_detach {
+                    debug!("Detaching kernel driver");
+                    handle.detach_kernel_driver(interface.number())?;
+                } else {
+                    debug!("Kernel driver detach disabled");
+                }
             },
             false => {
                 debug!("Kernel driver inactive");
             },
         }
 
-        debug!("Claiming interface");
-        handle.claim_interface(interface.number())?;
-
-        // Set endpoint configuration
-        #[cfg(off)]
-        if let Err(e) = handle.set_active_configuration(config_desc.number()) {
-            error!("Failed to set active configuration");
-            return Err(e.into());
+        // Claim interface for driver
+        // TODO: this is usually not supported on all libusb platforms
+        // for now this is enabled through hidden config options...
+        // needs testing and a cfg guard as appropriate
+        if !o.usb_no_claim {
+            debug!("Claiming interface");
+            handle.claim_interface(interface.number())?;
+        } else {
+            debug!("Claim interface disabled");
         }
 
+        // Create device object
         let mut s = Self {
             _device: device,
             handle,
@@ -222,10 +246,15 @@ impl PTouch {
             timeout: DEFAULT_TIMEOUT,
         };
 
-
-        s.invalidate()?;
-
-        s.init()?;
+        // Unless we're skipping reset
+        if !o.no_reset {
+            // Send invalidate to reset device
+            s.invalidate()?;
+            // Initialise device
+            s.init()?;
+        } else {
+            debug!("Skipping device reset");
+        }
 
         Ok(s)
     }
@@ -265,6 +294,7 @@ impl PTouch {
         })
     }
 
+    /// Fetch the device status
     pub fn status(&mut self) -> Result<Status, Error> {
         // Issue status request
         self.status_req()?;
@@ -280,8 +310,12 @@ impl PTouch {
         Ok(s)
     }
 
+    /// Setup the printer and print using raw raster data.
+    /// Print output must be shifted and in the correct bit-order for this function.
+    /// 
+    /// TODO: this is too low level of an interface, should be replaced with higher-level apis
     pub fn print_raw(&mut self, data: Vec<[u8; 16]>, info: &PrintInfo) -> Result<(), Error> {
-        // TODO: should we check things are compatible here?
+        // TODO: should we check info (and size) match status here?
 
 
         // Print sequence from raster guide Section 2.1
@@ -299,70 +333,33 @@ impl PTouch {
 
         // 5. Specify page number in "cut each * labels"
         // Note this is not supported on the PT-P710BT
+        // TODO: add this for other printers
 
         // 6. Set advanced mode settings
         self.set_advanced_mode(AdvancedMode::NO_CHAIN)?;
 
         // 7. Specify margin amount
         // TODO: based on what?
-        self.set_margin(14)?;
+        self.set_margin(0)?;
 
         // 8. Set compression mode
-        self.set_compression_mode(CompressionMode::Tiff)?;
-
-        // Check we're ready to print
-        //let s = self.status()?;
-
-        //if !s.error1.is_empty() || !s.error2.is_empty() {
-        //    debug!("Print error: {:?} {:?}", s.error1, s.error2);
-        //    return Err(Error::PTouch(s.error1, s.error2));
-        //}
-
-        #[cfg(nope)]
-        for i in 0..3 {
-            self.raster_zero()?;
-        }
+        // TODO: fix broken TIFF mode and add compression flag
+        self.set_compression_mode(CompressionMode::None)?;
 
         // Send raster data
         for line in data {
-            let l = tiff::compress(&line);
+            // TODO: re-add when TIFF mode issues resolved
+            //let l = tiff::compress(&line);
 
-            self.raster_transfer(&l)?;
+            self.raster_transfer(&line)?;
         }
-
-        #[cfg(nope)]
-        for i in 0..3 {
-            self.raster_zero()?;
-        }
-
-        // TODO: looks like 2 bytes of raster data, then a lot of empty lines, then some uncompressed data and some more empty lines?
-        // It doesn't _appear_ that there is a further raster header after the initial one
-        // so the raster_number _must_ be used to infer when the buffer is filled?
-        // 2 bytes raster, seems invalid, how long could this be? one line?
-        // (4 * 16) - 1 = 47 lines clear
-        // 16 bytes uncompressed, one line
-        // (5 * 16) + 8 + 3 = 75 lines clear
-        let _example = [
-            0x47, 0x02, 0x00, 0x51, // 
-            0x00, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
-            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
-            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
-            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
-            0xf6, 0x00, 0x04, 0x16, 0x99, 0x6c, 0x98, 0x6c, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
-            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
-            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
-            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
-            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
-            0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
-            0x5a, 0x5a,
-        ];
 
         // Execute print operation
         self.print_and_feed()?;
 
-        let mut i = 0;
 
         // Poll on print completion
+        let mut i = 0;
         loop {
             if let Ok(s) = self.read_status(self.timeout) {
                 if !s.error1.is_empty() || !s.error2.is_empty() {
@@ -412,7 +409,7 @@ impl PTouch {
 
     /// Write to command EP (with specified timeout)
     fn write(&mut self, data: &[u8], timeout: Duration) -> Result<(), Error> {
-        warn!("WRITE: {:02x?}", data);
+        debug!("WRITE: {:02x?}", data);
 
         // Execute write
         let n = self.handle.write_bulk(self.cmd_ep, &data, timeout)?;

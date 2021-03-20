@@ -1,45 +1,63 @@
 use std::time::Duration;
 
-use image::EncodableLayout;
 use log::{trace, debug};
 
 use crate::{Error, PTouch, device::Status};
 use crate::device::{AdvancedMode, Mode, PrintInfo, VariousMode, CompressionMode};
 
-/// Raw command API for the PTouch device
+/// Raw command API for the PTouch device.
+/// This provides low-level access to the device (if desired)
 pub trait Commands {
+    /// Null command
     fn null(&mut self) -> Result<(), Error>;
-
+    
+    /// Init command, sets up the device for printing
     fn init(&mut self) -> Result<(), Error>;
-
+    
+    /// Invalidate command, resets the device
     fn invalidate(&mut self) -> Result<(), Error>;
-
+    
+    /// Issue a status request
     fn status_req(&mut self) -> Result<(), Error>;
 
+    /// Read a status response with the provided timeout
     fn read_status(&mut self, timeout: Duration) -> Result<Status, Error>;
 
+    /// Switch mode, required for raster printing
     fn switch_mode(&mut self, mode: Mode) -> Result<(), Error>;
 
+    /// Set status notify (printer automatically sends status on change)
     fn set_status_notify(&mut self, enabled: bool) -> Result<(), Error>;
 
+    /// Set print information
     fn set_print_info(&mut self, info: &PrintInfo) -> Result<(), Error>;
 
+    /// Set various mode flags
     fn set_various_mode(&mut self, mode: VariousMode) -> Result<(), Error>;
 
+    /// Set advanced mode flags
     fn set_advanced_mode(&mut self, mode: AdvancedMode) -> Result<(), Error>;
 
+    /// Set pre/post print margin
     fn set_margin(&mut self, dots: u16) -> Result<(), Error>;
 
+    /// Set print page number
     fn set_page_no(&mut self, no: u8) -> Result<(), Error>;
 
+    /// Set compression mode (None or Tiff).
+    /// Note TIFF mode is currently... broken
     fn set_compression_mode(&mut self, mode: CompressionMode) -> Result<(), Error>;
 
+    /// Transfer raster data
     fn raster_transfer(&mut self, data: &[u8]) -> Result<(), Error>;
 
+    /// Send a zero raster line
     fn raster_zero(&mut self) -> Result<(), Error>;
 
+    /// Start a print
     fn print(&mut self) -> Result<(), Error>;
 
+    /// Start a print and feed
     fn print_and_feed(&mut self) -> Result<(), Error>;
 }
 
@@ -65,7 +83,8 @@ impl Commands for PTouch {
 
         let status = Status::from(status_raw);
 
-        debug!("Status: {:?} ({:02x?})", status, &status_raw);
+        debug!("Status: {:?}", status);
+        trace!("Raw status: {:?}", &status_raw);
 
         Ok(status)
     }

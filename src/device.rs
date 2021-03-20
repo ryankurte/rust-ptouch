@@ -2,6 +2,7 @@ use bitflags::bitflags;
 use strum_macros::{EnumString, ToString};
 
 bitflags::bitflags! {
+    /// First error byte
     pub struct Error1: u8 {
         const NO_MEDIA = 0x01;
         const CUTTER_JAM = 0x04;
@@ -11,12 +12,16 @@ bitflags::bitflags! {
 }
 
 bitflags::bitflags! {
+    /// Second device error type
     pub struct Error2: u8 {
         const WRONG_MEDIA = 0x01;
         const COVER_OPEN = 0x10;
         const OVERHEAT = 0x20;
     }
 }
+
+/// PTouch device type.
+/// Note that only the p710bt has been tested
 #[derive(Copy, Clone, PartialEq, Debug, EnumString, ToString)]
 pub enum PTouchDevice {
     #[strum(serialize = "pt-e550w")]
@@ -27,8 +32,10 @@ pub enum PTouchDevice {
     PtP710Bt = 0x20af,
 }
 
+
+/// Media width encoding for Status message
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub enum MediaWidth {
+pub enum Media {
     /// 6mm TZe Tape
     Tze6mm = 257,
     /// 9mm TZe Tape
@@ -55,10 +62,11 @@ pub enum MediaWidth {
     Unknown = 0xFFFF,
 }
 
-impl From<(MediaKind, u8)> for MediaWidth {
+/// Generate a MediaWidth from provided MediaKind and u8 width
+impl From<(MediaKind, u8)> for Media {
     fn from(v: (MediaKind, u8)) -> Self {
         use MediaKind::*;
-        use MediaWidth::*;
+        use Media::*;
 
         match v {
             (LaminatedTape, 6) | (NonLaminatedTape, 6) => Tze6mm,
@@ -76,10 +84,10 @@ impl From<(MediaKind, u8)> for MediaWidth {
     }
 }
 
-impl MediaWidth {
-    /// Fetch media area (left margin, print area, right margin)
-    pub fn area(&self) -> (u8, u8, u8) {
-        use MediaWidth::*;
+impl Media {
+    /// Fetch media print area (left margin, print area, right margin)
+    pub fn area(&self) -> (usize, usize, usize) {
+        use Media::*;
 
         match self {
             Tze6mm => (52, 32, 52),
@@ -97,8 +105,38 @@ impl MediaWidth {
             Unknown => (0, 0, 0)
         }
     }
+
+    /// Check if a media type is _tape_
+    pub fn is_tape(&self) -> bool {
+        use Media::*;
+
+        match self {
+            Tze6mm | Tze9mm | Tze12mm | Tze18mm | Tze24mm => true,
+            _ => false,
+        }
+    }
+
+    /// Fetch the (approximate) media width in mm
+    pub fn width(&self) -> usize {
+        use Media::*;
+
+        match self {
+            Tze6mm => 6,
+            Tze9mm => 9,
+            Tze12mm => 2,
+            Tze18mm => 8,
+            Tze24mm => 4,
+            Hs6mm => 6,
+            Hs9mm => 9,
+            Hs12mm => 12,
+            Hs18mm => 18,
+            Hs24mm => 24,
+            _ => panic!("Unknown media width"),
+        }
+    }
 }
 
+/// Kind of media loaded in printer
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum MediaKind {
     None = 0x00,
@@ -108,6 +146,7 @@ pub enum MediaKind {
     IncompatibleTape = 0xFF,
 }
 
+/// Device operating phase
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Phase {
     Editing,
@@ -127,6 +166,7 @@ impl From<u8> for Phase {
     }
 }
 
+/// Create media kind from status values
 impl From<u8> for MediaKind {
     fn from(v: u8) -> Self {
         match v {
@@ -140,7 +180,7 @@ impl From<u8> for MediaKind {
     }
 }
 
-
+/// Device state enumeration
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum DeviceStatus {
     Reply = 0x00,
@@ -171,14 +211,19 @@ impl From<u8> for DeviceStatus {
     }
 }
 
+/// Device mode for set_mode command
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Mode {
+    /// Not sure tbqh?
     EscP = 0x00,
+    /// Raster mode, what this driver uses
     Raster = 0x01,
+    /// Note PTouchTemplate is not available on most devices
     PTouchTemplate = 0x03,
 }
 
 bitflags! {
+    /// Various mode flags
     pub struct VariousMode: u8 {
         const AUTO_CUT = (1 << 6);
         const MIRROR = (1 << 7);
@@ -186,6 +231,7 @@ bitflags! {
 }
 
 bitflags! {
+    /// Advanced mode flags
     pub struct AdvancedMode: u8 {
         const HALF_CUT = (1 << 2);
         const NO_CHAIN = (1 << 3);
@@ -195,6 +241,7 @@ bitflags! {
     }
 }
 
+/// Notification enumerations
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Notification {
     NotAvailable = 0x00,
@@ -202,6 +249,7 @@ pub enum Notification {
     CoverClosed = 0x02,
 }
 
+/// Tape colour enumerations
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum TapeColour {
     White = 0x01,
@@ -271,6 +319,7 @@ impl From<u8> for TapeColour {
     }
 }
 
+/// Text colour enumerations
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum TextColour {
     White = 0x01,
@@ -304,6 +353,7 @@ impl From<u8> for TextColour {
     }
 }
 
+/// Device status message
 #[derive(Clone, PartialEq, Debug)]
 pub struct Status {
     pub model: u8,
@@ -339,6 +389,7 @@ impl From<[u8; 32]> for Status {
     }
 }
 
+/// Print information command
 #[derive(Clone, PartialEq, Debug)]
 pub struct PrintInfo {
     /// Media kind
@@ -365,6 +416,7 @@ impl Default for PrintInfo {
     }
 }
 
+/// Compression mode enumeration
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum CompressionMode {
     None = 0x00,

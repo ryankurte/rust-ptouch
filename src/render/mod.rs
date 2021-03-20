@@ -1,4 +1,5 @@
 use std::path::Path;
+use log::debug;
 
 use barcoders::sym::code39::Code39;
 use structopt::StructOpt;
@@ -49,12 +50,25 @@ pub struct Render {
 impl Render {
     /// Create a new render instance
     pub fn new(cfg: RenderConfig) -> Self {
-        // Setup virtual display for rendering
+        // Setup virtual display for render data
         let display = Display::new(cfg.y as usize, cfg.min_x as usize);
 
+        // Return new renderer
         Self { cfg, display }
     }
 
+    /// TODO: save the render buffer as a bitmap
+    pub fn save<P: AsRef<Path>>(&self, _path: P) -> Result<(), anyhow::Error> {
+        unimplemented!()
+    }
+
+    /// TODO: load the render buffer from a bitmap
+    pub fn load<P: AsRef<Path>>(_path: P) -> Result<Self, anyhow::Error> {
+        unimplemented!()
+    }
+    
+
+    /// Execute render operations
     pub fn render(&mut self, ops: &[Op]) -> Result<&Self, Error> {
         let mut x = 0;
         for operation in ops {
@@ -62,8 +76,7 @@ impl Render {
                 Op::Text { value, opts } => self.render_text(x, value, opts)?,
                 Op::Pad(c) => self.pad(x, *c)?,
                 Op::Qr(v) => self.render_qrcode(x, v)?,
-                Op::Barcode(v) => self.render_barcode(x, v)?,
-                _ => unimplemented!(),
+                Op::Barcode{ value, opts } => self.render_barcode(x, value, opts)?,
             }
         }
 
@@ -76,29 +89,35 @@ impl Render {
         use embedded_graphics::fonts::*;
         use embedded_text::style::vertical_overdraw::Hidden;
 
-
         // TODO: customise styles
 
         // TODO: custom alignment
 
+        // TODO: clean this up when updated embedded-graphics font API lands 
+        // https://github.com/embedded-graphics/embedded-graphics/issues/511
+
+        // Fix for escaped newlines from shell
+        // Otherwise "\n" becomes "\\n" and nothing works quite right
+        let value = value.replace("\\n", "\n");
+
         // Compute maximum line width
         let max_line_x = value
             .split("\n")
-            .map(|line| opts.font.char_width() * line.len())
+            .map(|line| opts.font.char_width() * line.len() + 1)
             .max()
             .unwrap();
         let max_x = self.cfg.max_x.min(start_x + max_line_x);
 
         // Create textbox instance
         let tb = TextBox::new(
-            value,
+            &value,
             Rectangle::new(
                 Point::new(start_x as i32, 0 as i32),
                 Point::new(max_x as i32, self.cfg.y as i32),
             ),
         );
 
-        println!("Textbox: {:?}", tb);
+        debug!("Textbox: {:?}", tb);
 
         #[cfg(nope)]
         let a = match opts.h_align {
@@ -116,8 +135,8 @@ impl Render {
 
         let a = CenterAligned;
         let v = CenterAligned;
-
         let h = Exact(Hidden);
+        let l = 4;
 
         // Render with loaded style
         let res = match opts.font {
@@ -126,6 +145,7 @@ impl Render {
                     .text_color(BinaryColor::On)
                     .height_mode(h)
                     .alignment(a)
+                    .line_spacing(l)
                     .vertical_alignment(v)
                     .build();
 
@@ -140,6 +160,7 @@ impl Render {
                     .text_color(BinaryColor::On)
                     .height_mode(h)
                     .alignment(a)
+                    .line_spacing(l)
                     .vertical_alignment(v)
                     .build();
 
@@ -154,6 +175,7 @@ impl Render {
                     .text_color(BinaryColor::On)
                     .height_mode(h)
                     .alignment(a)
+                    .line_spacing(l)
                     .vertical_alignment(v)
                     .build();
 
@@ -168,6 +190,7 @@ impl Render {
                     .text_color(BinaryColor::On)
                     .height_mode(h)
                     .alignment(a)
+                    .line_spacing(l)
                     .vertical_alignment(v)
                     .build();
 
@@ -182,6 +205,7 @@ impl Render {
                     .text_color(BinaryColor::On)
                     .height_mode(h)
                     .alignment(a)
+                    .line_spacing(l)
                     .vertical_alignment(v)
                     .build();
 
@@ -196,6 +220,7 @@ impl Render {
                     .text_color(BinaryColor::On)
                     .height_mode(h)
                     .alignment(a)
+                    .line_spacing(l)
                     .vertical_alignment(v)
                     .build();
 
@@ -228,7 +253,7 @@ impl Render {
 
         // Generate offsets
         let y_offset = (self.cfg.y as i32 - img.height() as i32) / 2;
-        let x_offset = (x_start as i32 + y_offset);
+        let x_offset = x_start as i32 + y_offset;
 
         // Write to display
         for (x, y, v) in img.enumerate_pixels() {
@@ -243,7 +268,7 @@ impl Render {
         Ok(img.width() as usize + x_offset as usize)
     }
 
-    fn render_barcode(&mut self, x_start: usize, value: &str) -> Result<usize, Error> {
+    fn render_barcode(&mut self, x_start: usize, value: &str, opts: &BarcodeOptions) -> Result<usize, Error> {
         let barcode = Code39::new(value).unwrap();
         let encoded: Vec<u8> = barcode.encode();
 
@@ -253,7 +278,7 @@ impl Render {
         for i in 0..encoded.len() {
             //let v = (encoded[i / 8] & ( 1 << (i % 8) ) ) == 0;
 
-            for y in 0..self.cfg.y {
+            for y in opts.y_offset..self.cfg.y-opts.y_offset {
                 let c = match encoded[i] != 0 {
                     true => BinaryColor::On,
                     false => BinaryColor::Off,
@@ -264,14 +289,11 @@ impl Render {
             }
         }
 
-        unimplemented!()
+        Ok(encoded.len() + x_offset as usize)
     }
 
-    pub fn save<P: AsRef<Path>>(&self, _path: P) -> Result<(), anyhow::Error> {
-        unimplemented!()
-    }
-
-    pub fn raster(&self, margins: (u8, u8, u8)) -> Result<Vec<[u8; 16]>, anyhow::Error> {
+    /// Raster data to a ptouch compatible buffer for printing
+    pub fn raster(&self, margins: (usize, usize, usize)) -> Result<Vec<[u8; 16]>, anyhow::Error> {
         self.display.raster(margins)
     }
 
@@ -280,7 +302,7 @@ impl Render {
         // Fetch rendered size
         let s = self.display.size();
 
-        println!("Render display size: {:?}", s);
+        debug!("Render display size: {:?}", s);
 
         // Create simulated display
         let mut sim_display: SimulatorDisplay<BinaryColor> = SimulatorDisplay::new(s);
@@ -303,11 +325,4 @@ impl Render {
 
         Ok(())
     }
-
-    pub fn bytes(&self) -> &[u8] {
-        unimplemented!()
-    }
 }
-
-
-

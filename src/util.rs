@@ -1,19 +1,74 @@
-use log::debug;
+
+
+use log::{debug, warn};
 use simplelog::{LevelFilter, TermLogger, TerminalMode};
 use structopt::StructOpt;
+use strum::VariantNames;
 
-use ptouch::{Filter, PTouch, device::{MediaWidth, PrintInfo}, render::{Op, Render, RenderConfig}};
+use ptouch::{Options, PTouch};
+use ptouch::device::{Media, PrintInfo};
+use ptouch::render::{FontKind, Op, Render, RenderConfig};
+
 
 #[derive(Clone, Debug, PartialEq, StructOpt)]
-pub struct Options {
+pub struct Flags {
     #[structopt(flatten)]
-    filter: Filter,
+    options: Options,
 
     #[structopt(subcommand)]
     command: Command,
 
+    #[structopt(long, default_value="16")]
+    /// Padding for start and end of renders
+    pad: usize,
+
+    #[structopt(long, default_value="70")]
+    /// Default media width when unable to query this from printer
+    media_width: usize,
+
     #[structopt(long, default_value = "info")]
     log_level: LevelFilter,
+}
+
+#[derive(Clone, Debug, PartialEq, StructOpt)]
+pub enum RenderCommand {
+    /// Basic text rendering
+    Text {
+        /// Text value
+        text: String,
+        #[structopt(long,  possible_values = &FontKind::VARIANTS, default_value="12x16")]
+        /// Text font
+        font: FontKind,
+    },
+    /// QR Code with text
+    QrText {
+        /// QR value
+        qr: String,
+        
+        /// Text value
+        text: String,
+
+        #[structopt(long,  possible_values = &FontKind::VARIANTS, default_value="12x16")]
+        /// Text font
+        font: FontKind,
+    },
+    /// QR Code
+    Qr {
+        /// QR value
+        qr: String,
+    },
+    /// Barcode (EXPERIMENTAL)
+    Barcode {
+        /// Barcode value
+        code: String,
+    },
+    /// Render from template
+    Template{
+        /// Template file
+        file: String,
+    },
+    /// Render example
+    Example,
 }
 
 #[derive(Clone, Debug, PartialEq, StructOpt)]
@@ -25,18 +80,15 @@ pub enum Command {
     Status,
 
     // Render a print preview
-    Preview,
-
-    // Placeholder to preview rendering on configured tape
-    Preview2,
+    Preview(RenderCommand),
 
     // Print data!
-    Print,
+    Print(RenderCommand),
 }
 
 fn main() -> anyhow::Result<()> {
     // Parse CLI options
-    let opts = Options::from_args();
+    let opts = Flags::from_args();
 
     // Setup logging
     TermLogger::init(
@@ -46,52 +98,72 @@ fn main() -> anyhow::Result<()> {
     )
     .unwrap();
 
-    // Run commands that do not _require_ the printer
-    match &opts.command {
-        Command::Preview => {
-            let cfg = RenderConfig::default();
+    // Create default render configuration
+    let mut rc = RenderConfig{
+        y: opts.media_width,
+        ..Default::default()
+    };
 
-            let ops = vec![
-                Op::pad(16),
-                Op::qr("https://hello.world"),
-                Op::text("Hello World\nHow's it going?"), 
-                Op::pad(16)];
+    debug!("Connecting to PTouch device: {:?}", opts.options);
+
+    // Attempt to connect to ptouch device to inform configuration
+    let connect = match PTouch::new(&opts.options) {
+        Ok(mut pt) => {
+            debug!("Connected! fetching status...");
+
+            // Fetch device status
+            let status = pt.status()?;
+            debug!("Device status: {:?}", status);
+
+            // Build MediaWidth from status message to retrieve offsets
+            let media = Media::from((status.media_kind, status.media_width));
+
+            // Update render config to reflect tape
+            rc.y = media.area().1 as usize;
+            // TODO: update colours too?
             
-            let mut r = Render::new(cfg);
+            // Return device and mediat width
+            Ok((pt, status, media))
+        },
+        Err(e) => Err(e),
+    };
 
-            r.render(&ops)?;
 
-            r.show()?;
+    // TODO: allow RenderConfig override from CLI
 
-            return Ok(());
+
+    // Run commands that do not _require_ the printer
+    if let Command::Preview(cmd) = &opts.command {
+        // Inform user if print boundaries are unset
+        if connect.is_err() {
+            warn!("Using default media width ({} px)", opts.media_width);
         }
-        _ => (),
+
+        // Load render operations from command
+        let ops = cmd.load(opts.pad)?;
+        
+        // Create renderer
+        let mut r = Render::new(rc);
+
+        // Apply render operations
+        r.render(&ops)?;
+
+        // Display render output
+        r.show()?;
+
+        return Ok(());
+
     }
 
-    // Create PTouch connection
-    debug!("Connecting to PTouch device: {:?}", opts.filter);
-
-    let mut ptouch = match PTouch::new(&opts.filter) {
+    // Check PTouch connection was successful
+    let (mut ptouch, status, media) = match connect {
         Ok(d) => d,
         Err(e) => {
             return Err(anyhow::anyhow!("Error connecting to PTouch: {:?}", e));
         }
     };
 
-    debug!("Device connected! reading status");
-
-    let status = ptouch.status()?;
-    let media = MediaWidth::from((status.media_kind, status.media_width));
-
-    debug!("Status: {:?} media: {:?}", status, media);
-
-    let render_cfg = RenderConfig{
-        y: media.area().1 as usize,
-        ..Default::default()
-    };
-
-    // TODO: do things with the printer...
-
+    // Run commands that -do- require the printer
     match &opts.command {
         Command::Info => {
             let i = ptouch.info()?;
@@ -100,46 +172,29 @@ fn main() -> anyhow::Result<()> {
         Command::Status => {
             println!("Status: {:?}", status);
         },
-        Command::Preview2 => {
-            let ops = vec![
-                Op::pad(16),
-                Op::qr("https://hello.world"),
-                Op::text("Hello World\nHow's it going?"), 
-                Op::pad(16)];
+        Command::Print(cmd) => {
+ 
+            // Load render operations from command
+            let ops = cmd.load(opts.pad)?;
             
-            let mut r = Render::new(render_cfg);
+            // Create renderer
+            let mut r = Render::new(rc);
 
+            // Apply render operations
             r.render(&ops)?;
 
-            r.show()?;
-        },
-        Command::Print => {
-            #[cfg(nope)]
-            {
-            let ops = vec![
-                Op::pad(16),
-                Op::qr("https://hello.world"),
-                Op::text("Hello World\nHow's it going?"), 
-                Op::pad(16)];
-            
-            let mut r = Render::new(render_cfg);
-
-            r.render(&ops)?;
-
+            // Generate raster data for printing
             let data = r.raster(media.area())?;
-            }
-
-            let data = vec![
-                [0xFF; 16],
-                [0xFF; 16],
-            ];
-
+            
+            // Setup print info based on media and rastered data
             let info = PrintInfo {
                 width: Some(status.media_width),
                 length: Some(0),
                 raster_no: data.len() as u32,
                 ..Default::default()
             };
+
+            // Print the thing!
             ptouch.print_raw(data, &info)?;
 
         },
@@ -149,4 +204,62 @@ fn main() -> anyhow::Result<()> {
     // TODO: close the printer?
 
     Ok(())
+}
+
+impl RenderCommand {
+    pub fn load(&self, pad: usize) -> Result<Vec<Op>, anyhow::Error> {
+        match self {
+            RenderCommand::Text { text, font } => {
+                let ops = vec![
+                    Op::pad(pad),
+                    Op::text_with_font(text, *font),
+                    Op::pad(pad),
+                ];
+                Ok(ops)
+            },
+            RenderCommand::QrText { qr, text, font } => {
+                let ops = vec![
+                    Op::pad(pad),
+                    Op::qr(qr),
+                    Op::text_with_font(text, *font), 
+                    Op::pad(pad)
+                ];
+                Ok(ops)
+            },
+            RenderCommand::Qr { qr } => {
+                let ops = vec![
+                    Op::pad(pad),
+                    Op::qr(qr),
+                    Op::pad(pad)
+                ];
+                Ok(ops)
+            },
+            RenderCommand::Barcode { code } => {
+                let ops = vec![
+                    Op::pad(pad),
+                    Op::barcode(code),
+                    Op::pad(pad)
+                ];
+                Ok(ops)
+            },
+            RenderCommand::Template { file } => {
+                // Read template file
+                let t = std::fs::read_to_string(file)?;
+                // Parse to render ops
+                let ops: Vec<Op> = toml::from_str(&t)?;
+                // Return render operations
+                Ok(ops)
+            },
+            RenderCommand::Example => {
+                let ops = vec![
+                    Op::pad(pad),
+                    Op::qr("https://hello.world"),
+                    Op::text("hello world,,\nhow's it going?"), 
+                    Op::pad(pad)
+                ];
+
+                Ok(ops)
+            }
+        }
+    }
 }

@@ -66,7 +66,7 @@ impl Display {
     }
 
 
-    pub fn raster(&self, margins: (u8, u8, u8)) -> Result<Vec<[u8; 16]>, anyhow::Error> {
+    pub fn raster(&self, margins: (usize, usize, usize)) -> Result<Vec<[u8; 16]>, anyhow::Error> {
         let s = self.size();
 
         println!("Raster display size: {:?} output area: {:?}", s, margins);
@@ -83,7 +83,7 @@ impl Display {
                 let y_offset = y + margins.0 as usize;
 
                 if p {
-                    buff[x][y_offset / 8] |= 1 << (y_offset % 8);
+                    buff[x][y_offset / 8] |= 1 << 7 - (y_offset % 8);
                 }
             }
         }

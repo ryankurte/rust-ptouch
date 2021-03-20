@@ -1,7 +1,10 @@
-use std::str::FromStr;
-
 use strum_macros::{Display, EnumString, EnumVariantNames};
+
+#[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
+
+#[cfg(feature = "structopt")]
+use structopt::StructOpt;
 
 /// Render operations, used to construct an image
 #[derive(Clone, PartialEq, Debug)]
@@ -10,15 +13,7 @@ pub enum Op {
     Text { value: String, opts: TextOptions },
     Pad(usize),
     Qr(String),
-    Barcode(String),
-}
-
-impl FromStr for Op {
-    type Err = ();
-
-    fn from_str(_s: &str) -> Result<Op, Self::Err> {
-        unimplemented!()
-    }
+    Barcode{ value: String, opts: BarcodeOptions },
 }
 
 impl Op {
@@ -26,6 +21,16 @@ impl Op {
         Self::Text {
             value: s.to_string(),
             opts: TextOptions::default(),
+        }
+    }
+
+    pub fn text_with_font(s: &str, f: FontKind) -> Self {
+        Self::Text {
+            value: s.to_string(),
+            opts: TextOptions{
+                font: f,
+                ..Default::default()
+            },
         }
     }
 
@@ -38,20 +43,29 @@ impl Op {
     }
 
     pub fn barcode(value: &str) -> Self {
-        Self::Barcode(value.to_string())
+        Self::Barcode{
+            value: value.to_string(), 
+            opts: BarcodeOptions::default()
+        }
     }
 }
 
 
-#[derive(Clone, PartialEq, Debug, Display)]
+#[derive(Copy, Clone, PartialEq, Debug, Display)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "strum", derive(EnumString, EnumVariantNames))]
 pub enum FontKind {
+    #[strum(serialize = "6x6")]
     Font6x6,
+    #[strum(serialize = "6x8")]
     Font6x8,
+    #[strum(serialize = "6x12")]
     Font6x12,
+    #[strum(serialize = "8x16")]
     Font8x16,
+    #[strum(serialize = "12x16")]
     Font12x16,
+    #[strum(serialize = "24x32")]
     Font24x32,
 }
 
@@ -120,10 +134,23 @@ impl Default for TextOptions {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct BarcodeOptions {}
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "structopt", derive(StructOpt))]
+pub struct BarcodeOptions {
+    #[cfg_attr(feature = "structopt", structopt(default_value="4"))]
+    /// Y offset from top and bottom of label
+    pub y_offset: usize,
+
+    #[cfg_attr(feature = "structopt", structopt(long))]
+    /// Double barcode width
+    pub double: bool,
+}
 
 impl Default for BarcodeOptions {
     fn default() -> Self {
-        Self {}
+        Self {
+            y_offset: 4,
+            double: false,
+        }
     }
 }
