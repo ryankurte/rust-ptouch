@@ -28,10 +28,6 @@ jobs:
             os: ubuntu-20.04
             output: ptouch-util
             apt-arch: armhf
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-20.04
-            output: ptouch-util
-            apt-arch: arm64
           - target: x86_64-apple-darwin
             os: macos-latest
             output: ptouch-util
@@ -67,7 +63,7 @@ jobs:
     
     - name: Install deps (apt native)
       if: ${{ matrix.os == 'ubuntu-latest' && matrix.target == 'x86_64-unknown-linux-gnu' }}
-      run: sudo apt install -y libusb-dev libsdl2-dev
+      run: sudo apt install -y libusb-dev
 
     - name: Install deps (foreign architecture)
       if: ${{ matrix.apt-arch }}
