@@ -39,9 +39,28 @@ Each of `render`, `preview`, and `print` take a set of `[OPTIONS]` to configure 
 
 These CLI options are a subset of those available using the library intended to provide the basics. If you think there's something missing, feel free to open an issue / PR!
 
+
 ### API
 
 This needs cleaning up before it's _reasonable_ to use... for usage see [src/util.rs](src/util.rs).
+
+### Examples
+
+```
+ptouch-util --media tze24mm preview qr-text \
+'https://github.com/ryankurte/rust-ptouch' \
+'Rust PTouch Driver\n@ryankurte' --font=24x32`
+```
+
+![image](https://user-images.githubusercontent.com/860620/111896515-0c7e1000-8a7f-11eb-95e6-af5f7b18a1ae.png)
+
+```
+ptouch-util print qr-text \
+"https://github.com/ryankurte/rust-ptouch" \
+"Rust PTouch Driver\n@ryankurte" --font=24x32
+```
+![IMG_1840](https://user-images.githubusercontent.com/860620/111896577-9201c000-8a7f-11eb-9c5f-a5041dba9236.jpg)
+
 
 ## Resources
 
