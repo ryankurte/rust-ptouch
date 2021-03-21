@@ -1,3 +1,8 @@
+//! Bitmap helper for PTouch raster encoding
+// Rust PTouch Driver / Utility
+//
+// https://github.com/ryankurte/rust-ptouch
+// Copyright 2021 Ryan Kurte
 
 /// Bitmap helper for encoding raster data.
 /// This internally manages offsets and byte ordering for printing.

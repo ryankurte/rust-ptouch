@@ -1,5 +1,13 @@
+//! PTouch printer device definitions
+// Rust PTouch Driver / Utility
+//
+// https://github.com/ryankurte/rust-ptouch
+// Copyright 2021 Ryan Kurte
+
 use bitflags::bitflags;
-use strum_macros::{EnumString, ToString};
+
+#[cfg(feature = "strum")]
+use strum_macros::{Display, EnumString, EnumVariantNames};
 
 bitflags::bitflags! {
     /// First error byte
@@ -22,19 +30,23 @@ bitflags::bitflags! {
 
 /// PTouch device type.
 /// Note that only the p710bt has been tested
-#[derive(Copy, Clone, PartialEq, Debug, EnumString, ToString)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "strum", derive(Display, EnumString, EnumVariantNames))]
+#[cfg_attr(feature = "strum", strum(serialize_all = "snake_case"))]
 pub enum PTouchDevice {
-    #[strum(serialize = "pt-e550w")]
+    #[cfg_attr(feature = "strum", strum(serialize = "pt-e550w"))]
     PtE550W = 0x2060,
-    #[strum(serialize = "pt-p750w")]
+    #[cfg_attr(feature = "strum", strum(serialize = "pt-p750w"))]
     PtP750W = 0x2062,
-    #[strum(serialize = "pt-p710bt")]
+    #[cfg_attr(feature = "strum", strum(serialize = "pt-p710bt"))]
     PtP710Bt = 0x20af,
 }
 
 
 /// Media width encoding for Status message
 #[derive(Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "strum", derive(Display, EnumString, EnumVariantNames))]
+#[cfg_attr(feature = "strum", strum(serialize_all = "snake_case"))]
 pub enum Media {
     /// 6mm TZe Tape
     Tze6mm = 257,

@@ -1,3 +1,9 @@
+//! PTouch low-level command API
+// Rust PTouch Driver / Utility
+//
+// https://github.com/ryankurte/rust-ptouch
+// Copyright 2021 Ryan Kurte
+
 use std::time::Duration;
 
 use log::{trace, debug};
@@ -61,6 +67,7 @@ pub trait Commands {
     fn print_and_feed(&mut self) -> Result<(), Error>;
 }
 
+/// Low-level command API implementation
 impl Commands for PTouch {
     fn null(&mut self) -> Result<(), Error> {
         self.write(&[0x00], self.timeout)

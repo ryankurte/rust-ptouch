@@ -38,12 +38,7 @@ serde = { version = "1.0.123", features = [ "derive" ], optional = true }
 bitvec = "0.21.0"
 toml = { version = "0.5.8", optional = true }
 
-
-
 [[bin]]
 name = "ptouch-util"
 path = "src/util.rs"
 required-features = [ "util" ]
-
-[patch.crates-io]
-qrcode = { git = "https://github.com/kennytm/qrcode-rust.git" }

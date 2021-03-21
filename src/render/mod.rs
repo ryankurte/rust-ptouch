@@ -1,8 +1,16 @@
+//! Basic label rendering engine
+// Rust PTouch Driver / Utility
+//
+// https://github.com/ryankurte/rust-ptouch
+// Copyright 2021 Ryan Kurte
+
 use std::path::Path;
 use log::debug;
 
-use barcoders::sym::code39::Code39;
 use structopt::StructOpt;
+use image::{Luma};
+use barcoders::sym::code39::Code39;
+use qrcode::QrCode;
 
 use embedded_graphics::prelude::*;
 use embedded_text::prelude::*;
@@ -13,7 +21,6 @@ use embedded_graphics::{
 use embedded_graphics_simulator::{
     BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, Window,
 };
-use qrcode::QrCode;
 
 use crate::Error;
 
@@ -57,14 +64,29 @@ impl Render {
         Self { cfg, display }
     }
 
-    /// TODO: save the render buffer as a bitmap
-    pub fn save<P: AsRef<Path>>(&self, _path: P) -> Result<(), anyhow::Error> {
-        unimplemented!()
-    }
+    /// Save the render buffer as an image
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), anyhow::Error> {
+        // Fetch current display size
+        let size = self.display.size();
 
-    /// TODO: load the render buffer from a bitmap
-    pub fn load<P: AsRef<Path>>(_path: P) -> Result<Self, anyhow::Error> {
-        unimplemented!()
+        // Create image
+        let i = image::DynamicImage::new_luma8(size.width, size.height);
+        let mut i = i.into_luma8();
+
+        // Copy data into image
+        for x in 0..size.width {
+            for y in 0..size.height {
+                let p = self.display.get(x as usize, y as usize)?;
+                if !p {
+                    i.put_pixel(x, y, Luma([0xff]));
+                }
+            }
+        }
+
+        // Save image to file
+        i.save(path)?;
+
+        Ok(())
     }
     
 
@@ -73,10 +95,11 @@ impl Render {
         let mut x = 0;
         for operation in ops {
             x += match operation {
-                Op::Text { value, opts } => self.render_text(x, value, opts)?,
-                Op::Pad(c) => self.pad(x, *c)?,
-                Op::Qr(v) => self.render_qrcode(x, v)?,
-                Op::Barcode{ value, opts } => self.render_barcode(x, value, opts)?,
+                Op::Text { text, opts } => self.render_text(x, text, opts)?,
+                Op::Pad{ count } => self.pad(x, *count)?,
+                Op::Qr{ code } => self.render_qrcode(x, code)?,
+                Op::Barcode{ code, opts } => self.render_barcode(x, code, opts)?,
+                Op::Image{ file, opts } => self.render_image(x, file, opts)?,
             }
         }
 
@@ -290,6 +313,35 @@ impl Render {
         }
 
         Ok(encoded.len() + x_offset as usize)
+    }
+
+    fn render_image(&mut self, x_start: usize, file: &str, _opts: &ImageOptions) -> Result<usize, Error> {
+        // Load image and convert to greyscale
+        let img = image::io::Reader::open(file)?.decode()?;
+        let i = img.clone().into_luma8();
+        let d = i.dimensions();
+
+        // TODO: Rescale based on image options
+
+        let x_offset = x_start as i32;
+        let y_offset = (self.cfg.y / 2) as i32 - (d.1 as usize / 2) as i32;
+
+        // Copy image data into display
+        for x in 0..d.0 as i32 {
+            for y in 0..d.1 as i32 {
+                let p = i.get_pixel(x as u32, y as u32);
+
+                let c = match p.0[0] == 0 {
+                    true => BinaryColor::On,
+                    false => BinaryColor::Off,
+                };
+
+                let p = Pixel(Point::new(x_offset + x as i32, y_offset + y as i32), c);
+                self.display.draw_pixel(p)?
+            }
+        }
+
+        Ok(d.0 as usize + x_offset as usize)
     }
 
     /// Raster data to a ptouch compatible buffer for printing

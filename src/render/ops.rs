@@ -1,3 +1,9 @@
+//! Render operations
+// Rust PTouch Driver / Utility
+//
+// https://github.com/ryankurte/rust-ptouch
+// Copyright 2021 Ryan Kurte
+
 use strum_macros::{Display, EnumString, EnumVariantNames};
 
 #[cfg(feature = "serde")]
@@ -6,27 +12,52 @@ use serde::{Serialize, Deserialize};
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
 
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct RenderTemplate {
+    pub ops: Vec<Op>,
+}
+
+
 /// Render operations, used to construct an image
 #[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(tag="kind", rename_all="snake_case"))]
 pub enum Op {
-    Text { value: String, opts: TextOptions },
-    Pad(usize),
-    Qr(String),
-    Barcode{ value: String, opts: BarcodeOptions },
+    Text {
+        text: String,
+        #[cfg_attr(feature = "serde", serde(flatten))]
+        opts: TextOptions
+    },
+    Pad{
+        count: usize
+    },
+    Qr{
+        code: String
+    },
+    Barcode{
+        code: String,
+        #[cfg_attr(feature = "serde", serde(flatten, default))]
+        opts: BarcodeOptions
+    },
+    Image{
+        file: String,
+        #[cfg_attr(feature = "serde", serde(flatten, default))]
+        opts: ImageOptions
+    },
 }
 
 impl Op {
     pub fn text(s: &str) -> Self {
         Self::Text {
-            value: s.to_string(),
+            text: s.to_string(),
             opts: TextOptions::default(),
         }
     }
 
     pub fn text_with_font(s: &str, f: FontKind) -> Self {
         Self::Text {
-            value: s.to_string(),
+            text: s.to_string(),
             opts: TextOptions{
                 font: f,
                 ..Default::default()
@@ -35,17 +66,24 @@ impl Op {
     }
 
     pub fn pad(columns: usize) -> Self {
-        Self::Pad(columns)
+        Self::Pad{ count: columns }
     }
 
-    pub fn qr(value: &str) -> Self {
-        Self::Qr(value.to_string())
+    pub fn qr(code: &str) -> Self {
+        Self::Qr{ code: code.to_string() }
     }
 
-    pub fn barcode(value: &str) -> Self {
+    pub fn barcode(code: &str) -> Self {
         Self::Barcode{
-            value: value.to_string(), 
-            opts: BarcodeOptions::default()
+            code: code.to_string(), 
+            opts: BarcodeOptions::default(),
+        }
+    }
+
+    pub fn image(file: &str) -> Self {
+        Self::Image {
+            file: file.to_string(),
+            opts: ImageOptions::default(),
         }
     }
 }
@@ -54,18 +92,19 @@ impl Op {
 #[derive(Copy, Clone, PartialEq, Debug, Display)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "strum", derive(EnumString, EnumVariantNames))]
+#[cfg_attr(feature = "serde", serde(rename_all="snake_case"))]
 pub enum FontKind {
-    #[strum(serialize = "6x6")]
+    #[cfg_attr(feature = "strum", strum(serialize = "6x6"))]
     Font6x6,
-    #[strum(serialize = "6x8")]
+    #[cfg_attr(feature = "strum", strum(serialize = "6x8"))]
     Font6x8,
-    #[strum(serialize = "6x12")]
+    #[cfg_attr(feature = "strum", strum(serialize = "6x12"))]
     Font6x12,
-    #[strum(serialize = "8x16")]
+    #[cfg_attr(feature = "strum", strum(serialize = "8x16"))]
     Font8x16,
-    #[strum(serialize = "12x16")]
+    #[cfg_attr(feature = "strum", strum(serialize = "12x16"))]
     Font12x16,
-    #[strum(serialize = "24x32")]
+    #[cfg_attr(feature = "strum", strum(serialize = "24x32"))]
     Font24x32,
 }
 
@@ -99,6 +138,7 @@ impl FontKind {
 
 #[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct TextOptions {
     pub font: FontKind,
     pub v_align: VAlign,
@@ -152,5 +192,18 @@ impl Default for BarcodeOptions {
             y_offset: 4,
             double: false,
         }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "structopt", derive(StructOpt))]
+pub struct ImageOptions {
+    // TODO: scaling, invert, etc...
+}
+
+impl Default for ImageOptions {
+    fn default() -> Self {
+        Self {}
     }
 }

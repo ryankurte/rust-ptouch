@@ -1,0 +1,17 @@
+
+[[ops]]
+kind = "pad"
+count = 16
+
+[[ops]]
+kind = "qr"
+code = "https://github.com/ryankurte/rust-ptouch"
+
+[[ops]]
+kind = "text"
+text = "Rust PTouch Driver Library\n@ryankurte"
+font = "font12x16"
+
+[[ops]]
+kind = "pad"
+count = 16

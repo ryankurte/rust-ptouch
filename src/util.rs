@@ -1,11 +1,14 @@
-
+//! Rust PTouch Command Line Utility
+//
+// https://github.com/ryankurte/rust-ptouch
+// Copyright 2021 Ryan Kurte
 
 use log::{debug, warn};
 use simplelog::{LevelFilter, TermLogger, TerminalMode};
 use structopt::StructOpt;
 use strum::VariantNames;
 
-use ptouch::{Options, PTouch};
+use ptouch::{Options, PTouch, render::RenderTemplate};
 use ptouch::device::{Media, PrintInfo};
 use ptouch::render::{FontKind, Op, Render, RenderConfig};
 
@@ -22,9 +25,9 @@ pub struct Flags {
     /// Padding for start and end of renders
     pad: usize,
 
-    #[structopt(long, default_value="70")]
-    /// Default media width when unable to query this from printer
-    media_width: usize,
+    #[structopt(long, possible_values = &Media::VARIANTS, default_value="tze12mm")]
+    /// Default media kind when unable to query this from printer
+    media: Media,
 
     #[structopt(long, default_value = "info")]
     log_level: LevelFilter,
@@ -36,7 +39,7 @@ pub enum RenderCommand {
     Text {
         /// Text value
         text: String,
-        #[structopt(long,  possible_values = &FontKind::VARIANTS, default_value="12x16")]
+        #[structopt(long, possible_values = &FontKind::VARIANTS, default_value="12x16")]
         /// Text font
         font: FontKind,
     },
@@ -48,7 +51,7 @@ pub enum RenderCommand {
         /// Text value
         text: String,
 
-        #[structopt(long,  possible_values = &FontKind::VARIANTS, default_value="12x16")]
+        #[structopt(long, possible_values = &FontKind::VARIANTS, default_value="12x16")]
         /// Text font
         font: FontKind,
     },
@@ -67,6 +70,11 @@ pub enum RenderCommand {
         /// Template file
         file: String,
     },
+    /// Render from image
+    Image{
+        /// Image file
+        file: String,
+    },
     /// Render example
     Example,
 }
@@ -79,8 +87,18 @@ pub enum Command {
     // Fetch printer status
     Status,
 
-    // Render a print preview
+    // Render and display a preview
     Preview(RenderCommand),
+
+    // Render to an image file
+    Render{
+        #[structopt(long)]
+        /// Image file to save render output
+        file: String,
+
+        #[structopt(subcommand)]
+        cmd: RenderCommand,
+    },
 
     // Print data!
     Print(RenderCommand),
@@ -100,7 +118,7 @@ fn main() -> anyhow::Result<()> {
 
     // Create default render configuration
     let mut rc = RenderConfig{
-        y: opts.media_width,
+        y: opts.media.area().1 as usize,
         ..Default::default()
     };
 
@@ -133,26 +151,48 @@ fn main() -> anyhow::Result<()> {
 
 
     // Run commands that do not _require_ the printer
-    if let Command::Preview(cmd) = &opts.command {
-        // Inform user if print boundaries are unset
-        if connect.is_err() {
-            warn!("Using default media width ({} px)", opts.media_width);
-        }
+    match &opts.command {
+        Command::Preview(cmd) => {
+            // Inform user if print boundaries are unset
+            if connect.is_err() {
+                warn!("Using default media: {}, override with `--media` argument", opts.media);
+            }
 
-        // Load render operations from command
-        let ops = cmd.load(opts.pad)?;
-        
-        // Create renderer
-        let mut r = Render::new(rc);
+            // Load render operations from command
+            let ops = cmd.load(opts.pad)?;
+            
+            // Create renderer
+            let mut r = Render::new(rc);
 
-        // Apply render operations
-        r.render(&ops)?;
+            // Apply render operations
+            r.render(&ops)?;
 
-        // Display render output
-        r.show()?;
+            // Display render output
+            r.show()?;
 
-        return Ok(());
+            return Ok(());
+        },
+        Command::Render{ file, cmd } => {
+            // Inform user if print boundaries are unset
+            if connect.is_err() {
+                warn!("Using default media: {}, override with `--media` argument", opts.media);
+            }
 
+            // Load render operations from command
+            let ops = cmd.load(opts.pad)?;
+            
+            // Create renderer
+            let mut r = Render::new(rc);
+
+            // Apply render operations
+            r.render(&ops)?;
+
+            // Display render output
+            r.save(file)?;
+
+            return Ok(());
+        },
+        _ => (),
     }
 
     // Check PTouch connection was successful
@@ -206,6 +246,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+
 impl RenderCommand {
     pub fn load(&self, pad: usize) -> Result<Vec<Op>, anyhow::Error> {
         match self {
@@ -246,10 +287,18 @@ impl RenderCommand {
                 // Read template file
                 let t = std::fs::read_to_string(file)?;
                 // Parse to render ops
-                let ops: Vec<Op> = toml::from_str(&t)?;
+                let c: RenderTemplate = toml::from_str(&t)?;
                 // Return render operations
-                Ok(ops)
+                Ok(c.ops)
             },
+            RenderCommand::Image { file } => {
+                let ops = vec![
+                    Op::pad(pad),
+                    Op::image(file),
+                    Op::pad(pad)
+                ];
+                Ok(ops)
+            }
             RenderCommand::Example => {
                 let ops = vec![
                     Op::pad(pad),

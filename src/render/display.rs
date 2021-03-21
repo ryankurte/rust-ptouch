@@ -1,8 +1,13 @@
+//! Virtual display for render support
+// Rust PTouch Driver / Utility
+//
+// https://github.com/ryankurte/rust-ptouch
+// Copyright 2021 Ryan Kurte
+
 use embedded_graphics::{
     prelude::*,
     pixelcolor::BinaryColor,
 };
-
 
 use crate::Error;
 
@@ -91,8 +96,8 @@ impl Display {
         Ok(buff)
     }
 
-    /// Set a value by X/Y location
-    fn set(&mut self, x: usize, y: usize, v: bool) -> Result<(), Error> {
+    /// Set a pixel value by X/Y location
+    pub fn set(&mut self, x: usize, y: usize, v: bool) -> Result<(), Error> {
         // Check Y bounds
         if y > self.y {
             return Err(Error::Render);
@@ -115,7 +120,7 @@ impl Display {
         Ok(())
     }
 
-    /// Fetch a display value by X/Y location
+    /// Fetch a pixel value by X/Y location
     pub fn get(&self, x: usize, y: usize) -> Result<bool, Error> {
         // Check Y bounds
         if y > self.y {

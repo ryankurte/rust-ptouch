@@ -1,9 +1,20 @@
+//! Rust PTouch Driver / Utility
+//
+// https://github.com/ryankurte/rust-ptouch
+// Copyright 2021 Ryan Kurte
+
 use std::time::Duration;
 
 use commands::Commands;
 use device::Status;
+use image::ImageError;
 use log::{trace, debug, error};
+
+#[cfg(feature = "structopt")]
 use structopt::StructOpt;
+
+#[cfg(feature = "strum")]
+use strum::VariantNames;
 
 use rusb::{Context, Device, DeviceDescriptor, DeviceHandle, Direction, TransferType, UsbContext};
 
@@ -18,6 +29,7 @@ pub mod tiff;
 
 pub mod render;
 
+/// PTouch device instance
 pub struct PTouch {
     _device: Device<Context>,
     handle: DeviceHandle<Context>,
@@ -29,14 +41,17 @@ pub struct PTouch {
     stat_ep: u8,
 }
 
+/// Brother USB Vendor ID
 pub const BROTHER_VID: u16 = 0x04F9;
+
+/// Default USB timeout
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_millis(500);
 
 /// Options for connecting to a PTouch device
 #[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "structopt", derive(StructOpt))]
 pub struct Options {
-    #[cfg_attr(feature = "structopt", structopt(long, default_value = "pt-p710bt"))]
+    #[cfg_attr(feature = "structopt", structopt(long, possible_values = &device::PTouchDevice::VARIANTS, default_value = "pt-p710bt"))]
     /// Label maker device kind
     pub device: device::PTouchDevice,
 
@@ -64,10 +79,17 @@ lazy_static::lazy_static! {
     };
 }
 
+/// PTouch API errors
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("USB error: {:?}", 0)]
     Usb(rusb::Error),
+
+    #[error("IO error: {:?}", 0)]
+    Io(std::io::Error),
+
+    #[error("Image error: {:?}", 0)]
+    Image(ImageError),
 
     #[error("Invalid device index")]
     InvalidIndex,
@@ -88,13 +110,25 @@ pub enum Error {
     PTouch(Error1, Error2),
 }
 
+impl From<std::io::Error> for Error {
+    fn from(e: std::io::Error) -> Self {
+        Error::Io(e)
+    }
+}
+
 impl From<rusb::Error> for Error {
     fn from(e: rusb::Error) -> Self {
         Error::Usb(e)
     }
 }
 
-/// Device information object
+impl From<ImageError> for Error {
+    fn from(e: ImageError) -> Self {
+        Error::Image(e)
+    }
+}
+
+/// PTouch device information
 #[derive(Clone, Debug, PartialEq)]
 pub struct Info {
     pub manufacturer: String,
@@ -108,7 +142,7 @@ impl PTouch {
         Self::new_with_context(o, &CONTEXT)
     }
 
-    /// Create a new PTouch driver with the provided USB options and rusb::Context
+    /// Create a new PTouch driver with the provided USB options and an existing rusb::Context
     pub fn new_with_context(o: &Options, context: &Context) -> Result<Self, Error> {
         // List available devices
         let devices = context.devices()?;
