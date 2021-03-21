@@ -21,7 +21,7 @@ The utility supports a set of basic subcommands:
 
 - `ptouch-util [SUBCOMMAND] --help` to show help options
 - `ptouch-util [--media MEDIA] render --file=[OUTPUT] [OPTIONS]` to render to an `OUTPUT` image file
-- `ptouch-util [--media MEDIA] preview [OPTIONS]` to render to a preview window
+- `ptouch-util [--media MEDIA] preview [OPTIONS]` to render to a preview window (not available on all platforms)
 - `ptouch-util print [OPTIONS]` to print
 
 The `--media` argument sets the default media type when the printer is unavailable, otherwise this is loaded from the printer.

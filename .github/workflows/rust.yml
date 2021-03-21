@@ -23,6 +23,7 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             output: ptouch-util
+            args: --no-default-features --features=util
           - target: armv7-unknown-linux-gnueabihf 
             os: ubuntu-20.04
             output: ptouch-util
@@ -30,7 +31,7 @@ jobs:
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-20.04
             output: ptouch-util
-            apt-arch: aarch64
+            apt-arch: arm64
           - target: x86_64-apple-darwin
             os: macos-latest
             output: ptouch-util
