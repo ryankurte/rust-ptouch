@@ -26,7 +26,7 @@ strum_macros = "0.20.1"
 anyhow = "1.0.38"
 
 simplelog = "0.9.0"
-qrcode = "*"
+qrcode = "0.12.0"
 image = "0.23.13"
 barcoders = "1.0.2"
 
