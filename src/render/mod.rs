@@ -18,6 +18,8 @@ use embedded_text::prelude::*;
 use embedded_graphics::{
     pixelcolor::BinaryColor,
 };
+
+#[cfg(feature = "preview")]
 use embedded_graphics_simulator::{
     BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, Window,
 };
@@ -350,6 +352,7 @@ impl Render {
     }
 
     /// Show the rendered image (note that this blocks until the window is closed)
+    #[cfg(feature = "preview")]
     pub fn show(&self) -> Result<(), anyhow::Error> {
         // Fetch rendered size
         let s = self.display.size();

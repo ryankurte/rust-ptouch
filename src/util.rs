@@ -152,6 +152,7 @@ fn main() -> anyhow::Result<()> {
 
     // Run commands that do not _require_ the printer
     match &opts.command {
+        #[cfg(feature = "preview")]
         Command::Preview(cmd) => {
             // Inform user if print boundaries are unset
             if connect.is_err() {
@@ -172,6 +173,12 @@ fn main() -> anyhow::Result<()> {
 
             return Ok(());
         },
+        #[cfg(not(feature = "preview"))]
+        Command::Preview(_cmd) => {
+            warn!("Preview not enabled (or not supported on this platform");
+            warn!("Try `render` command to render to image files");
+            return Ok(())
+        }
         Command::Render{ file, cmd } => {
             // Inform user if print boundaries are unset
             if connect.is_err() {

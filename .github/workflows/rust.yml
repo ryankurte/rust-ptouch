@@ -37,6 +37,7 @@ jobs:
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             output: ptouch-util.exe
+            args: --no-default-features --features=util
 
     steps:
     - uses: actions/checkout@v2
@@ -59,20 +60,20 @@ jobs:
           ${{ env.HOME }}/.cargo
           target
 
-    - name: Install libusb (brew)
+    - name: Install deps (brew)
       if: ${{ matrix.os == 'macos-latest' }}
-      run: brew install libusb
+      run: brew install libusb sdl2
     
-    - name: Install libusb (apt native)
+    - name: Install deps (apt native)
       if: ${{ matrix.os == 'ubuntu-latest' && matrix.target == 'x86_64-unknown-linux-gnu' }}
-      run: sudo apt install -y libusb-dev
+      run: sudo apt install -y libusb-dev libsdl2-dev
 
-    - name: Install libusb (foreign architecture)
+    - name: Install deps (foreign architecture)
       if: ${{ matrix.apt-arch }}
       uses: ryankurte/action-apt@v0.3.0
       with:
         arch: ${{ matrix.apt-arch }}
-        packages: libusb-dev:${{ matrix.apt-arch }}
+        packages: libusb-dev:${{ matrix.apt-arch }} libsdl2-dev:${{ matrix.apt-arch }}
 
     - name: Install cross toolchain (armv7)
       if: ${{ matrix.target == 'armv7-unknown-linux-gnueabihf' }}

@@ -8,7 +8,8 @@ license = "MPL-2.0"
 
 [features]
 util = [ "toml", "structopt", "strum", "serde" ]
-default = [ "util" ]
+preview = [ "embedded-graphics-simulator" ]
+default = [ "util", "preview" ]
 
 [dependencies]
 structopt = { version = "0.3.21", optional = true }
@@ -32,7 +33,7 @@ tempdir = "0.3.7"
 embedded-graphics = "0.6.2"
 embedded-text = "0.4.0"
 # TODO: make preview optional
-embedded-graphics-simulator = "0.2.0"
+embedded-graphics-simulator = { version = "0.2.0", optional = true }
 
 serde = { version = "1.0.123", features = [ "derive" ], optional = true }
 bitvec = "0.21.0"
