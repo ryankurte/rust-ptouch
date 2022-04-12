@@ -16,7 +16,7 @@ default = [ "util", "preview" ]
 
 [dependencies]
 structopt = { version = "0.3.21", optional = true }
-rusb = "0.8.1"
+rusb = "0.9.1"
 lazy_static = "1.4.0"
 log = "0.4.13"
 bitfield = "0.13.2"
