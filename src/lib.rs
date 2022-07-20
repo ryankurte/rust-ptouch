@@ -57,7 +57,7 @@ pub struct Options {
     pub index: usize,
 
     #[cfg_attr(feature = "structopt", structopt(long, default_value = "500"))]
-    /// Index (if multiple devices are connected)
+    /// Timeout to pass to the read_bulk and write_bulk methods
     pub timeout_milliseconds: u64,
 
     #[cfg_attr(feature = "structopt", structopt(long, hidden = true))]
