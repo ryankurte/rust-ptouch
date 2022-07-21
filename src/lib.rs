@@ -70,6 +70,10 @@ pub struct Options {
     #[cfg_attr(feature = "structopt", structopt(long, hidden = true))]
     /// (DEBUG) Do not detach from kernel drivers on connect
     pub usb_no_detach: bool,
+
+    #[structopt(long)]
+    /// If true, the program will not perform a status request
+    pub no_status_fetch: bool,
 }
 
 // Lazy initialised libusb context

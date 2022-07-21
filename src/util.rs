@@ -25,10 +25,6 @@ pub struct Flags {
     /// Padding for start and end of renders
     pad: usize,
 
-    #[structopt(long)]
-    /// If true, the program will not perform a status request
-    no_status_fetch: bool,
-
     #[structopt(long, possible_values = &Media::VARIANTS, default_value="tze12mm")]
     /// Default media kind when unable to query this from printer
     media: Media,
@@ -132,7 +128,7 @@ fn main() -> anyhow::Result<()> {
     let connect = match PTouch::new(&opts.options) {
         Ok(mut pt) => {
             let status;
-            if opts.no_status_fetch {
+            if opts.options.no_status_fetch {
                 debug!("Connected! status request disabled, using default status...");
                 // Getting default status
                 status = pt.status_default(&opts.media)?;
