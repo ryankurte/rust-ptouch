@@ -135,9 +135,9 @@ impl Media {
         match self {
             Tze6mm => 6,
             Tze9mm => 9,
-            Tze12mm => 2,
-            Tze18mm => 8,
-            Tze24mm => 4,
+            Tze12mm => 12,
+            Tze18mm => 18,
+            Tze24mm => 24,
             Hs6mm => 6,
             Hs9mm => 9,
             Hs12mm => 12,
