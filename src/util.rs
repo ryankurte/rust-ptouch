@@ -3,7 +3,7 @@
 // https://github.com/ryankurte/rust-ptouch
 // Copyright 2021 Ryan Kurte
 
-use log::{debug, warn};
+use log::{debug, info, warn};
 use simplelog::{LevelFilter, TermLogger, TerminalMode};
 use structopt::StructOpt;
 use strum::VariantNames;
@@ -129,11 +129,11 @@ fn main() -> anyhow::Result<()> {
         Ok(mut pt) => {
             let status;
             if opts.options.no_status_fetch {
-                debug!("Connected! status request disabled, using default status...");
+                info!("Connected! status request disabled, using default status...");
                 // Getting default status
                 status = Status::new(&opts.media)?;
             } else {
-                debug!("Connected! fetching status...");
+                info!("Connected! fetching status...");
                 // Fetch device status
                 status = pt.status()?;
             }
