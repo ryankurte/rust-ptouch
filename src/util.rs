@@ -132,13 +132,13 @@ fn main() -> anyhow::Result<()> {
                 info!("Connected! status request disabled, using default status...");
                 // Getting default status
                 status = Status::new(&opts.media)?;
+                info!("Device status (default one used): {:?}", status);
             } else {
                 info!("Connected! fetching status...");
                 // Fetch device status
                 status = pt.status()?;
+                info!("Device status (fetched from device): {:?}", status);
             }
-
-            debug!("Device status: {:?}", status);
 
             // Build MediaWidth from status message to retrieve offsets
             let media = Media::from((status.media_kind, status.media_width));
