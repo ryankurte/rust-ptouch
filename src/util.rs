@@ -9,7 +9,7 @@ use structopt::StructOpt;
 use strum::VariantNames;
 
 use ptouch::{Options, PTouch, render::RenderTemplate};
-use ptouch::device::{Media, PrintInfo};
+use ptouch::device::{Media, PrintInfo, Status};
 use ptouch::render::{FontKind, Op, Render, RenderConfig};
 
 
@@ -131,7 +131,7 @@ fn main() -> anyhow::Result<()> {
             if opts.options.no_status_fetch {
                 debug!("Connected! status request disabled, using default status...");
                 // Getting default status
-                status = pt.status_default(&opts.media)?;
+                status = Status::new(&opts.media)?;
             } else {
                 debug!("Connected! fetching status...");
                 // Fetch device status
