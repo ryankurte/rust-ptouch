@@ -4,6 +4,8 @@
 // https://github.com/ryankurte/rust-ptouch
 // Copyright 2021 Ryan Kurte
 
+use crate::Error;
+
 use bitflags::bitflags;
 
 #[cfg(feature = "strum")]
@@ -135,9 +137,9 @@ impl Media {
         match self {
             Tze6mm => 6,
             Tze9mm => 9,
-            Tze12mm => 2,
-            Tze18mm => 8,
-            Tze24mm => 4,
+            Tze12mm => 12,
+            Tze18mm => 18,
+            Tze24mm => 24,
             Hs6mm => 6,
             Hs9mm => 9,
             Hs12mm => 12,
@@ -381,6 +383,27 @@ pub struct Status {
 
     pub tape_colour: TapeColour,
     pub text_colour: TextColour,
+}
+
+impl Status {
+    // This function is gonna be called if the --no-status-fetch flag is enabled.
+    // It returns a default status, which is assumed to be correct to then print.
+    pub fn new(media: &Media) -> Result<Status, Error> {
+        Ok(Status {
+            model: 0,                                   // The model is not that important, and also the manual only shows the model ID of E550W and E750W
+            error1: Error1::empty(),                    // Assuming there's no error
+            error2: Error2::empty(),                    // Assuming there's no error
+            media_width: media.width() as u8,           // Width given by user in command
+            media_kind: match media.is_tape() {         // Not sure if this is really important, but this is an easy way to detect if it is tape (can't know if laminated or not) or not
+                true => MediaKind::LaminatedTape,
+                false => MediaKind::HeatShrinkTube
+            },
+            status_type: DeviceStatus::Completed,       // Assuming the printer is ready to print
+            phase: Phase::Editing,                      // Assuming the printer is not printing
+            tape_colour: TapeColour::White,             // By default, assuming the tape is white...
+            text_colour: TextColour::Black,             // ...and the text colour is black. Would maybe be good to let the user change it in the command
+        })
+    }
 }
 
 impl From<[u8; 32]> for Status {

@@ -3,13 +3,13 @@
 // https://github.com/ryankurte/rust-ptouch
 // Copyright 2021 Ryan Kurte
 
-use log::{debug, warn};
+use log::{debug, info, warn};
 use simplelog::{LevelFilter, TermLogger, TerminalMode};
 use structopt::StructOpt;
 use strum::VariantNames;
 
 use ptouch::{Options, PTouch, render::RenderTemplate};
-use ptouch::device::{Media, PrintInfo};
+use ptouch::device::{Media, PrintInfo, Status};
 use ptouch::render::{FontKind, Op, Render, RenderConfig};
 
 
@@ -127,11 +127,18 @@ fn main() -> anyhow::Result<()> {
     // Attempt to connect to ptouch device to inform configuration
     let connect = match PTouch::new(&opts.options) {
         Ok(mut pt) => {
-            debug!("Connected! fetching status...");
-
-            // Fetch device status
-            let status = pt.status()?;
-            debug!("Device status: {:?}", status);
+            let status;
+            if opts.options.no_status_fetch {
+                info!("Connected! status request disabled, using default status...");
+                // Getting default status
+                status = Status::new(&opts.media)?;
+                info!("Device status (default one used): {:?}", status);
+            } else {
+                info!("Connected! fetching status...");
+                // Fetch device status
+                status = pt.status()?;
+                info!("Device status (fetched from device): {:?}", status);
+            }
 
             // Build MediaWidth from status message to retrieve offsets
             let media = Media::from((status.media_kind, status.media_width));
