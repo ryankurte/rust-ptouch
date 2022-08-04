@@ -25,7 +25,7 @@ jobs:
             output: ptouch-util
             args: --no-default-features --features=util
           - target: armv7-unknown-linux-gnueabihf 
-            os: ubuntu-20.04
+            os: ubuntu-latest
             output: ptouch-util
             apt-arch: armhf
           - target: x86_64-apple-darwin
@@ -70,7 +70,7 @@ jobs:
       uses: ryankurte/action-apt@v0.3.0
       with:
         arch: ${{ matrix.apt-arch }}
-        packages: libusb-dev:${{ matrix.apt-arch }} libsdl2-dev:${{ matrix.apt-arch }}
+        packages: libusb-dev:${{ matrix.apt-arch }} libusb-1.0-0-dev:${{ matrix.apt-arch }} libsdl2-dev:${{ matrix.apt-arch }}
 
     - name: Install cross toolchain (armv7)
       if: ${{ matrix.target == 'armv7-unknown-linux-gnueabihf' }}
