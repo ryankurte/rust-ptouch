@@ -135,7 +135,7 @@ impl Commands for PTouch {
         }
 
         let raster_bytes = info.raster_no.to_le_bytes();
-        &buff[7..11].copy_from_slice(&raster_bytes);
+        buff[7..11].copy_from_slice(&raster_bytes);
 
         if info.recover {
             buff[3] |= 0x80;
