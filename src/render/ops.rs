@@ -4,6 +4,7 @@
 // https://github.com/ryankurte/rust-ptouch
 // Copyright 2021 Ryan Kurte
 
+#[cfg(feature = "strum")]
 use strum_macros::{Display, EnumString, EnumVariantNames};
 
 #[cfg(feature = "serde")]
@@ -89,9 +90,9 @@ impl Op {
 }
 
 
-#[derive(Copy, Clone, PartialEq, Debug, Display)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "strum", derive(EnumString, EnumVariantNames))]
+#[cfg_attr(feature = "strum", derive(Display, EnumString, EnumVariantNames))]
 #[cfg_attr(feature = "serde", serde(rename_all="snake_case"))]
 pub enum FontKind {
     #[cfg_attr(feature = "strum", strum(serialize = "6x6"))]
