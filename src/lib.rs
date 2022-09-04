@@ -71,7 +71,7 @@ pub struct Options {
     /// (DEBUG) Do not detach from kernel drivers on connect
     pub usb_no_detach: bool,
 
-    #[structopt(long)]
+    #[cfg_attr(feature = "structopt", structopt(long))]
     /// If true, the program will not perform a status request
     pub no_status_fetch: bool,
 }

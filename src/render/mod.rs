@@ -6,11 +6,12 @@
 
 use std::path::Path;
 use log::debug;
-
-use structopt::StructOpt;
 use image::{Luma};
 use barcoders::sym::code39::Code39;
 use qrcode::QrCode;
+
+#[cfg(feature = "structopt")]
+use structopt::StructOpt;
 
 use embedded_graphics::prelude::*;
 use embedded_text::prelude::*;
@@ -31,7 +32,8 @@ pub use display::*;
 pub mod ops;
 pub use ops::*;
 
-#[derive(Clone, PartialEq, Debug, StructOpt)]
+#[derive(Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "structopt", derive(StructOpt))]
 pub struct RenderConfig {
     /// Image minimum X size
     pub min_x: usize,
