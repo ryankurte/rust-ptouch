@@ -44,9 +44,6 @@ pub struct PTouch {
 /// Brother USB Vendor ID
 pub const BROTHER_VID: u16 = 0x04F9;
 
-/// Default USB timeout
-pub const DEFAULT_TIMEOUT: Duration = Duration::from_millis(500);
-
 /// Options for connecting to a PTouch device
 #[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "structopt", derive(StructOpt))]
@@ -58,6 +55,10 @@ pub struct Options {
     #[cfg_attr(feature = "structopt", structopt(long, default_value = "0"))]
     /// Index (if multiple devices are connected)
     pub index: usize,
+
+    #[cfg_attr(feature = "structopt", structopt(long, default_value = "500"))]
+    /// Timeout to pass to the read_bulk and write_bulk methods
+    pub timeout_milliseconds: u64,
 
     #[cfg_attr(feature = "structopt", structopt(long, hidden = true))]
     /// Do not reset the device on connect
@@ -281,7 +282,7 @@ impl PTouch {
             descriptor,
             cmd_ep,
             stat_ep,
-            timeout: DEFAULT_TIMEOUT,
+            timeout: Duration::from_millis(o.timeout_milliseconds),
         };
 
         // Unless we're skipping reset
