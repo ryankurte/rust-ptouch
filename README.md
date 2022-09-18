@@ -17,7 +17,7 @@ Brother P-Touch Label-Maker Raster Driver for `PT-E550W/P750W/P710BT` devices.
 
 ### Utility
 
-Install with `cargo install rust-ptouch` or grab the latest release [here](https://github.com/ryankurte/rust-ptouch/releases/latest).
+Install with `cargo install ptouch` or grab the latest release [here](https://github.com/ryankurte/rust-ptouch/releases/latest).
 
 The utility supports a set of basic subcommands:
 
