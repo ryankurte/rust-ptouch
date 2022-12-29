@@ -19,15 +19,15 @@ structopt = { version = "0.3.21", optional = true }
 rusb = "0.9.1"
 lazy_static = "1.4.0"
 log = "0.4.13"
-bitfield = "0.13.2"
+bitfield = "0.14.0"
 bitflags = "1.2.1"
 strum = { version = "0.24.0", optional = true }
-strum_macros = "0.22.0"
+strum_macros = "0.24.3"
 anyhow = "1.0.38"
 
-simplelog = "0.9.0"
+simplelog = "0.12.0"
 qrcode = "0.12.0"
-image = "0.23.13"
+image = "0.23.14"
 barcoders = "1.0.2"
 
 thiserror = "1.0.23"
@@ -39,7 +39,7 @@ embedded-text = "0.4.0"
 embedded-graphics-simulator = { version = "0.2.0", optional = true }
 
 serde = { version = "1.0.123", features = [ "derive" ], optional = true }
-bitvec = "0.22.0"
+bitvec = "1.0.1"
 toml = { version = "0.5.8", optional = true }
 
 [[bin]]

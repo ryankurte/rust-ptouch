@@ -4,7 +4,7 @@
 // Copyright 2021 Ryan Kurte
 
 use log::{debug, info, warn};
-use simplelog::{LevelFilter, TermLogger, TerminalMode};
+use simplelog::{LevelFilter, TermLogger, TerminalMode, ColorChoice};
 use structopt::StructOpt;
 use strum::VariantNames;
 
@@ -113,6 +113,7 @@ fn main() -> anyhow::Result<()> {
         opts.log_level,
         simplelog::Config::default(),
         TerminalMode::Mixed,
+        ColorChoice::Auto,
     )
     .unwrap();
 
