@@ -34,7 +34,7 @@ thiserror = "1.0.23"
 tempdir = "0.3.7"
 
 embedded-graphics = "0.6.2"
-embedded-text = "0.4.0"
+embedded-text = "0.5.0"
 # TODO: make preview optional
 embedded-graphics-simulator = { version = "0.2.0", optional = true }
 
