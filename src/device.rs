@@ -83,11 +83,11 @@ impl From<(MediaKind, u8)> for Media {
         use Media::*;
 
         match v {
-            (LaminatedTape, 6) | (NonLaminatedTape, 6) => Tze6mm,
-            (LaminatedTape, 9) | (NonLaminatedTape, 9) => Tze9mm,
-            (LaminatedTape, 12) | (NonLaminatedTape, 12) => Tze12mm,
-            (LaminatedTape, 18) | (NonLaminatedTape, 18) => Tze18mm,
-            (LaminatedTape, 24) | (NonLaminatedTape, 24) => Tze24mm,
+            (LaminatedTape, 6) | (NonLaminatedTape, 6) | (FlexibleTape, 6) => Tze6mm,
+            (LaminatedTape, 9) | (NonLaminatedTape, 9) | (FlexibleTape, 9) => Tze9mm,
+            (LaminatedTape, 12) | (NonLaminatedTape, 12) | (FlexibleTape, 12) => Tze12mm,
+            (LaminatedTape, 18) | (NonLaminatedTape, 18) | (FlexibleTape, 18) => Tze18mm,
+            (LaminatedTape, 24) | (NonLaminatedTape, 24) | (FlexibleTape, 24) => Tze24mm,
             (HeatShrinkTube, 6) => Hs6mm,
             (HeatShrinkTube, 9) => Hs9mm,
             (HeatShrinkTube, 12)  => Hs12mm,
@@ -157,6 +157,7 @@ pub enum MediaKind {
     LaminatedTape = 0x01,
     NonLaminatedTape = 0x03,
     HeatShrinkTube = 0x11,
+    FlexibleTape = 0x14,
     IncompatibleTape = 0xFF,
 }
 
@@ -188,6 +189,7 @@ impl From<u8> for MediaKind {
            0x01 => MediaKind::LaminatedTape,
            0x03 => MediaKind::NonLaminatedTape,
            0x11 => MediaKind::HeatShrinkTube,
+           0x14 => MediaKind::FlexibleTape,
            0xFF => MediaKind::IncompatibleTape,
            _ => MediaKind::IncompatibleTape,
        }
