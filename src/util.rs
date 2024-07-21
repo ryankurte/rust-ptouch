@@ -318,7 +318,7 @@ impl RenderCommand {
                 let ops = vec![
                     Op::pad(pad),
                     Op::qr("https://hello.world"),
-                    Op::text("hello world,,\nhow's it going?"), 
+                    Op::text("Hello world,\nhow's it going?"), 
                     Op::pad(pad)
                 ];
 
