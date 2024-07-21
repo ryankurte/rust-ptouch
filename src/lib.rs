@@ -433,12 +433,20 @@ impl PTouch {
     /// Read from status EP (with specified timeout)
     fn read(&mut self, timeout: Duration) -> Result<[u8; 32], Error> {
         let mut buff = [0u8; 32];
-
-        // Execute read
-        let n = self.handle.read_bulk(self.stat_ep, &mut buff, timeout)?;
-
-        if n != 32 {
-            return Err(Error::Timeout)
+        let mut attempts = 10;
+        // retry this 10 times
+        loop {
+            attempts -= 1;
+            if attempts == 0 {
+                return Err(Error::Timeout);
+            }
+            // Execute read
+            let n = self.handle.read_bulk(self.stat_ep, &mut buff, timeout)?;
+            if n == 0 {
+                continue;
+            } else {
+                break;
+            }
         }
 
         // TODO: parse out status?
