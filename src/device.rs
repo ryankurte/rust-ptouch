@@ -38,6 +38,8 @@ bitflags::bitflags! {
 pub enum PTouchDevice {
     #[cfg_attr(feature = "strum", strum(serialize = "pt-e550w"))]
     PtE550W = 0x2060,
+    #[cfg_attr(feature = "strum", strum(serialize = "pt-e560bt"))]
+    PtE560BT = 0x2203,
     #[cfg_attr(feature = "strum", strum(serialize = "pt-p750w"))]
     PtP750W = 0x2062,
     #[cfg_attr(feature = "strum", strum(serialize = "pt-p710bt"))]
