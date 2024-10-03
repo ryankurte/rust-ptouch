@@ -27,6 +27,7 @@ anyhow = "1.0.38"
 
 simplelog = "0.12.0"
 qrcode = "0.12.0"
+datamatrix = "0.3.1"
 image = "0.23.14"
 barcoders = "1.0.2"
 

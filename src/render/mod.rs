@@ -6,9 +6,10 @@
 
 use std::path::Path;
 use log::debug;
-use image::{Luma};
+use image::Luma;
 use barcoders::sym::code39::Code39;
 use qrcode::QrCode;
+use datamatrix::{DataMatrix, SymbolList};
 
 #[cfg(feature = "structopt")]
 use structopt::StructOpt;
@@ -18,6 +19,7 @@ use embedded_text::prelude::*;
 
 use embedded_graphics::{
     pixelcolor::BinaryColor,
+    style::PrimitiveStyle,
 };
 
 #[cfg(feature = "preview")]
@@ -102,6 +104,7 @@ impl Render {
                 Op::Text { text, opts } => self.render_text(x, text, opts)?,
                 Op::Pad{ count } => self.pad(x, *count)?,
                 Op::Qr{ code } => self.render_qrcode(x, code)?,
+                Op::DataMatrix{ code } => self.render_datamatrix(x, code)?,
                 Op::Barcode{ code, opts } => self.render_barcode(x, code, opts)?,
                 Op::Image{ file, opts } => self.render_image(x, file, opts)?,
             }
@@ -293,6 +296,28 @@ impl Render {
         }
 
         Ok(img.width() as usize + x_offset as usize)
+    }
+
+    fn render_datamatrix(&mut self, x_start: usize, value: &str) -> Result<usize, Error> {
+        // Only allow up to max height of tape
+        let sl = SymbolList::default().enforce_height_in(..self.cfg.y);
+        let dm = DataMatrix::encode(value.as_bytes(), sl).unwrap();
+        let bitmap = dm.bitmap();
+
+        // We want to make the datamatrix as large as possible for scanning
+        let scale = self.cfg.y / bitmap.height();
+
+        let x_offset = x_start;
+        let y_offset = ((self.cfg.y as i32 - (bitmap.height() * scale) as i32) / 2) as usize;
+
+        for (x,y) in bitmap.pixels() {
+            let xs = x_offset + x * scale;
+            let ys = y_offset + y * scale;
+            let r = Rectangle::new(Point::new(xs as i32, ys as i32),
+                                   Point::new((xs+scale-1) as i32, (ys+scale-1) as i32));
+            self.display.draw_rectangle(&r.into_styled(PrimitiveStyle::with_fill(BinaryColor::On)))?;
+        }
+        Ok(bitmap.width()*scale + x_offset)
     }
 
     fn render_barcode(&mut self, x_start: usize, value: &str, opts: &BarcodeOptions) -> Result<usize, Error> {
