@@ -36,6 +36,9 @@ pub enum Op {
     Qr{
         code: String
     },
+    DataMatrix{
+        code: String
+    },
     Barcode{
         code: String,
         #[cfg_attr(feature = "serde", serde(flatten, default))]
@@ -72,6 +75,10 @@ impl Op {
 
     pub fn qr(code: &str) -> Self {
         Self::Qr{ code: code.to_string() }
+    }
+
+    pub fn datamatrix(code: &str) -> Self {
+        Self::DataMatrix{ code: code.to_string() }
     }
 
     pub fn barcode(code: &str) -> Self {

@@ -47,7 +47,7 @@ pub enum RenderCommand {
     QrText {
         /// QR value
         qr: String,
-        
+
         /// Text value
         text: String,
 
@@ -59,6 +59,11 @@ pub enum RenderCommand {
     Qr {
         /// QR value
         qr: String,
+    },
+    /// Datamatrix
+    Datamatrix {
+        /// Datamatrix value
+        dm: String,
     },
     /// Barcode (EXPERIMENTAL)
     Barcode {
@@ -286,6 +291,14 @@ impl RenderCommand {
                 let ops = vec![
                     Op::pad(pad),
                     Op::qr(qr),
+                    Op::pad(pad)
+                ];
+                Ok(ops)
+            },
+            RenderCommand::Datamatrix { dm } => {
+                let ops = vec![
+                    Op::pad(pad),
+                    Op::datamatrix(dm),
                     Op::pad(pad)
                 ];
                 Ok(ops)
