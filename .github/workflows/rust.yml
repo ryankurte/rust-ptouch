@@ -108,7 +108,7 @@ jobs:
         tar -czvf ptouch-util-${{ matrix.target }}.tgz ${{ matrix.output }}-${{ matrix.target }}
 
     - name: Upload utility artifacts
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.output }}-${{ matrix.target }}
         path: ${{ matrix.output }}-${{ matrix.target }}
