@@ -11,8 +11,8 @@ use barcoders::sym::code39::Code39;
 use qrcode::QrCode;
 use datamatrix::{DataMatrix, SymbolList};
 
-#[cfg(feature = "structopt")]
-use structopt::StructOpt;
+#[cfg(feature = "clap")]
+use clap::Args;
 
 use embedded_graphics::prelude::*;
 use embedded_text::prelude::*;
@@ -35,7 +35,7 @@ pub mod ops;
 pub use ops::*;
 
 #[derive(Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "structopt", derive(StructOpt))]
+#[cfg_attr(feature = "clap", derive(Args))]
 pub struct RenderConfig {
     /// Image minimum X size
     pub min_x: usize,

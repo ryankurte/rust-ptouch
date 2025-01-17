@@ -10,11 +10,8 @@ use device::Status;
 use image::ImageError;
 use log::{trace, debug, error};
 
-#[cfg(feature = "structopt")]
-use structopt::StructOpt;
-
-#[cfg(feature = "strum")]
-use strum::VariantNames;
+#[cfg(feature = "clap")]
+use clap::Parser;
 
 use rusb::{Context, Device, DeviceDescriptor, DeviceHandle, Direction, TransferType, UsbContext};
 
@@ -46,33 +43,33 @@ pub const BROTHER_VID: u16 = 0x04F9;
 
 /// Options for connecting to a PTouch device
 #[derive(Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "structopt", derive(StructOpt))]
+#[cfg_attr(feature = "clap", derive(Parser))]
 pub struct Options {
-    #[cfg_attr(feature = "structopt", structopt(long, possible_values = &device::PTouchDevice::VARIANTS, default_value = "pt-p710bt"))]
+    #[cfg_attr(feature = "clap", arg(value_enum, default_value = "pt-p710bt"))]
     /// Label maker device kind
     pub device: device::PTouchDevice,
 
-    #[cfg_attr(feature = "structopt", structopt(long, default_value = "0"))]
+    #[cfg_attr(feature = "clap", arg(long, default_value = "0"))]
     /// Index (if multiple devices are connected)
     pub index: usize,
 
-    #[cfg_attr(feature = "structopt", structopt(long, default_value = "500"))]
+    #[cfg_attr(feature = "clap", arg(long, default_value = "500"))]
     /// Timeout to pass to the read_bulk and write_bulk methods
     pub timeout_milliseconds: u64,
 
-    #[cfg_attr(feature = "structopt", structopt(long, hidden = true))]
+    #[cfg_attr(feature = "clap", arg(long, hide = true))]
     /// Do not reset the device on connect
     pub no_reset: bool,
 
-    #[cfg_attr(feature = "structopt", structopt(long, hidden = true))]
+    #[cfg_attr(feature = "clap", arg(long, hide = true))]
     /// (DEBUG) Do not claim USB interface on connect
     pub usb_no_claim: bool,
 
-    #[cfg_attr(feature = "structopt", structopt(long, hidden = true))]
+    #[cfg_attr(feature = "clap", arg(long, hide = true))]
     /// (DEBUG) Do not detach from kernel drivers on connect
     pub usb_no_detach: bool,
 
-    #[cfg_attr(feature = "structopt", structopt(long))]
+    #[cfg_attr(feature = "clap", arg(long))]
     /// If true, the program will not perform a status request
     pub no_status_fetch: bool,
 }
@@ -190,7 +187,7 @@ impl PTouch {
         let (device, descriptor) = matches.remove(o.index);
 
         // Open device handle
-        let mut handle = match device.open() {
+        let handle = match device.open() {
             Ok(v) => v,
             Err(e) => {
                 debug!("Error opening device");

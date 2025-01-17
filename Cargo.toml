@@ -10,12 +10,14 @@ edition = "2018"
 license = "MPL-2.0"
 
 [features]
-util = [ "toml", "structopt", "strum", "serde" ]
+util = [ "toml", "clap", "strum", "serde" ]
 preview = [ "embedded-graphics-simulator" ]
 default = [ "util", "preview" ]
+clap = ["dep:clap"]
 
 [dependencies]
-structopt = { version = "0.3.21", optional = true }
+clap = { version = "4.5.26", optional = true, features = ["derive"] }
+clap_derive = { version = "4.0.0-rc.1" }
 rusb = "0.9.1"
 lazy_static = "1.4.0"
 log = "0.4.13"
