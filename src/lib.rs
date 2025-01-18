@@ -431,6 +431,17 @@ impl PTouch {
         Ok(())
     }
 
+    pub fn cut(&mut self, info: &PrintInfo) -> Result<(), Error> {
+        // Print a single blank line in chain mode, causing a minimal empty
+        // label to be generated (which is cut off on the next print).
+        let print_info = PrintInfo {
+            chain: true,
+            ..*info
+        };
+
+        self.print_raw(vec![[0_u8; 16]], &print_info)
+    }
+
     /// Read from status EP (with specified timeout)
     fn read(&mut self, timeout: Duration) -> Result<[u8; 32], Error> {
         let mut buff = [0u8; 32];

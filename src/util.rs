@@ -116,6 +116,9 @@ pub enum Command {
         #[command(subcommand)]
         cmd: RenderCommand,
     },
+
+    /// Feed and cut label, can be used with the "chain" option for print
+    Cut,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -268,6 +271,15 @@ fn main() -> anyhow::Result<()> {
             ptouch.print_raw(data, &info)?;
 
         },
+        Command::Cut => {
+            let info = PrintInfo {
+                width: Some(status.media_width),
+                length: Some(0),
+                raster_no: media.area().1 as u32,
+                ..Default::default()
+            };
+            ptouch.cut(&info)?;
+        }
         _ => (),
     }
 
