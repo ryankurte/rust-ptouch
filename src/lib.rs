@@ -372,7 +372,11 @@ impl PTouch {
         // TODO: add this for other printers
 
         // 6. Set advanced mode settings
-        self.set_advanced_mode(AdvancedMode::NO_CHAIN)?;
+        if info.chain {
+            self.set_advanced_mode(AdvancedMode::NONE)?;
+        } else {
+            self.set_advanced_mode(AdvancedMode::NO_CHAIN)?;
+        }
 
         // 7. Specify margin amount
         // TODO: based on what?

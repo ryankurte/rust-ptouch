@@ -109,6 +109,10 @@ pub enum Command {
 
     // Print data!
     Print{
+        #[arg(long)]
+        /// Do not feed and cut label after printing to avoid waste
+        chain: bool,
+
         #[command(subcommand)]
         cmd: RenderCommand,
     },
@@ -237,7 +241,7 @@ fn main() -> anyhow::Result<()> {
         Command::Status => {
             println!("Status: {:?}", status);
         },
-        Command::Print{ cmd } => {
+        Command::Print{ chain, cmd } => {
  
             // Load render operations from command
             let ops = cmd.load(opts.pad)?;
@@ -256,6 +260,7 @@ fn main() -> anyhow::Result<()> {
                 width: Some(status.media_width),
                 length: Some(0),
                 raster_no: data.len() as u32,
+                chain: *chain,
                 ..Default::default()
             };
 
