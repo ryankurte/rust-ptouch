@@ -31,6 +31,9 @@ jobs:
           - target: x86_64-apple-darwin
             os: macos-latest
             output: ptouch-util
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            output: ptouch-util
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             output: ptouch-util.exe
