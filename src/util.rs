@@ -122,13 +122,13 @@ fn main() -> anyhow::Result<()> {
     )
     .unwrap();
 
-    // Create default render configuration
-    let mut rc = RenderConfig{
-        y: opts.media.area().1 as usize,
-        ..Default::default()
-    };
+    // Will be set based on device resolution
+    let rc: RenderConfig;
 
     debug!("Connecting to PTouch device: {:?}", opts.options);
+
+    // Default to an expected resolution based on the specified device.
+    let mut resolution = opts.options.device.resolution();
 
     // Attempt to connect to ptouch device to inform configuration
     let connect = match PTouch::new(&opts.options) {
@@ -148,15 +148,20 @@ fn main() -> anyhow::Result<()> {
 
             // Build MediaWidth from status message to retrieve offsets
             let media = Media::from((status.media_kind, status.media_width));
+            resolution = pt.resolution();
 
-            // Update render config to reflect tape
-            rc.y = media.area().1 as usize;
-            // TODO: update colours too?
-            
-            // Return device and mediat width
+            // TODO: set colours too?
+
+            // Return device and media
             Ok((pt, status, media))
         },
         Err(e) => Err(e),
+    };
+
+    // Create render configuration with the correct resolution.
+    rc = RenderConfig{
+        y: opts.media.area_for_resolution(resolution).1 as usize,
+        ..Default::default()
     };
 
 
@@ -175,8 +180,8 @@ fn main() -> anyhow::Result<()> {
             // Load render operations from command
             let ops = cmd.load(opts.pad)?;
             
-            // Create renderer
-            let mut r = Render::new(rc);
+            // Create renderer with the appropriate resolution
+            let mut r = Render::new(rc, resolution);
 
             // Apply render operations
             r.render(&ops)?;
@@ -201,8 +206,8 @@ fn main() -> anyhow::Result<()> {
             // Load render operations from command
             let ops = cmd.load(opts.pad)?;
             
-            // Create renderer
-            let mut r = Render::new(rc);
+            // Create renderer with the appropriate resolution
+            let mut r = Render::new(rc, resolution);
 
             // Apply render operations
             r.render(&ops)?;
@@ -237,20 +242,27 @@ fn main() -> anyhow::Result<()> {
             // Load render operations from command
             let ops = cmd.load(opts.pad)?;
             
-            // Create renderer
-            let mut r = Render::new(rc);
+            // Get device resolution (already resolved from connection)
+            let resolution = ptouch.resolution();
+
+            // Create renderer with the device's resolution
+            let mut r = Render::new(rc, resolution);
 
             // Apply render operations
             r.render(&ops)?;
 
+            // Get media margins based on resolution
+            let margins = media.area_for_resolution(resolution);
+
             // Generate raster data for printing
-            let data = r.raster(media.area())?;
+            let data = r.raster(margins)?;
             
             // Setup print info based on media and rastered data
             let info = PrintInfo {
                 width: Some(status.media_width),
                 length: Some(0),
                 raster_no: data.len() as u32,
+                resolution: resolution,
                 ..Default::default()
             };
 

@@ -39,6 +39,7 @@ pub struct PTouch {
 
     cmd_ep: u8,
     stat_ep: u8,
+    device: PTouchDevice,
 }
 
 /// Brother USB Vendor ID
@@ -147,6 +148,11 @@ impl PTouch {
         Self::new_with_context(o, &CONTEXT)
     }
 
+    /// Get the resolution of the current device
+    pub fn resolution(&self) -> DeviceResolution {
+        self.device.resolution()
+    }
+
     /// Create a new PTouch driver with the provided USB options and an existing rusb::Context
     pub fn new_with_context(o: &Options, context: &Context) -> Result<Self, Error> {
         // List available devices
@@ -190,7 +196,7 @@ impl PTouch {
         let (device, descriptor) = matches.remove(o.index);
 
         // Open device handle
-        let mut handle = match device.open() {
+        let handle = match device.open() {
             Ok(v) => v,
             Err(e) => {
                 debug!("Error opening device");
@@ -283,6 +289,7 @@ impl PTouch {
             cmd_ep,
             stat_ep,
             timeout: Duration::from_millis(o.timeout_milliseconds),
+            device: o.device,
         };
 
         // Unless we're skipping reset
@@ -353,9 +360,8 @@ impl PTouch {
     /// Print output must be shifted and in the correct bit-order for this function.
     /// 
     /// TODO: this is too low level of an interface, should be replaced with higher-level apis
-    pub fn print_raw(&mut self, data: Vec<[u8; 16]>, info: &PrintInfo) -> Result<(), Error> {
+    pub fn print_raw(&mut self, data: Vec<Vec<u8>>, info: &PrintInfo) -> Result<(), Error> {
         // TODO: should we check info (and size) match status here?
-
 
         // Print sequence from raster guide Section 2.1
         // 1. Set to raster mode
@@ -448,6 +454,8 @@ impl PTouch {
                 break;
             }
         }
+
+        debug!("READ: {:02x?}", buff);
 
         // TODO: parse out status?
 

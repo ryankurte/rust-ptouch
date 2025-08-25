@@ -137,6 +137,19 @@ impl Commands for PTouch {
         let raster_bytes = info.raster_no.to_le_bytes();
         buff[7..11].copy_from_slice(&raster_bytes);
 
+        // Page information - For multi-page prints, the starting page should be set to 0, and other
+        // pages should be set to 1. For 360 DPI printers, however, the last page must be set to 2,
+        // even if it is also the starting page. As we don't currently support multi-page prints,
+        // assume that this is both the first and last page, and set the flag accordingly.
+        match info.resolution {
+            crate::device::DeviceResolution::Dpi360 => {
+                buff[11] = 2;
+            },
+            _ => {
+                // buff[11] remains 0
+            }
+        }
+
         if info.recover {
             buff[3] |= 0x80;
         }

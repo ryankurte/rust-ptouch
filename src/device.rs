@@ -39,13 +39,50 @@ pub enum PTouchDevice {
     #[cfg_attr(feature = "strum", strum(serialize = "pt-e550w"))]
     PtE550W = 0x2060,
     #[cfg_attr(feature = "strum", strum(serialize = "pt-e560bt"))]
-    PtE560BT = 0x2203,
+    PtE560Bt = 0x2203,
     #[cfg_attr(feature = "strum", strum(serialize = "pt-p750w"))]
     PtP750W = 0x2062,
     #[cfg_attr(feature = "strum", strum(serialize = "pt-p710bt"))]
     PtP710Bt = 0x20af,
     #[cfg_attr(feature = "strum", strum(serialize = "pt-d600"))]
     PtD600 = 0x2074,
+    #[cfg_attr(feature = "strum", strum(serialize = "pt-p910bt"))]
+    PtP910Bt = 0x20c7,
+}
+
+impl PTouchDevice {
+    /// Get the resolution of a printer model in DPI
+    pub fn resolution(&self) -> DeviceResolution {
+        match self {
+            PTouchDevice::PtP910Bt => DeviceResolution::Dpi360,
+            _ => DeviceResolution::Dpi180,
+        }
+    }
+}
+
+/// Device resolution capabilities
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum DeviceResolution {
+    Dpi180,
+    Dpi360,
+}
+
+impl DeviceResolution {
+    /// Get the DPI value
+    pub fn dpi(&self) -> u16 {
+        match self {
+            DeviceResolution::Dpi180 => 180,
+            DeviceResolution::Dpi360 => 360,
+        }
+    }
+
+    /// Get the line width in bytes
+    pub fn line_bytes(&self) -> usize {
+        match self {
+            DeviceResolution::Dpi180 => 16,
+            DeviceResolution::Dpi360 => 70,
+        }
+    }
 }
 
 
@@ -54,6 +91,8 @@ pub enum PTouchDevice {
 #[cfg_attr(feature = "strum", derive(Display, EnumString, EnumVariantNames))]
 #[cfg_attr(feature = "strum", strum(serialize_all = "snake_case"))]
 pub enum Media {
+    /// 3.5mm TZe Tape
+    Tze4mm = 263,
     /// 6mm TZe Tape
     Tze6mm = 257,
     /// 9mm TZe Tape
@@ -64,6 +103,8 @@ pub enum Media {
     Tze18mm = 260,
     /// 24mm TZe Tape
     Tze24mm = 261,
+    /// 36mm TZe Tape
+    Tze36mm = 262,
 
     /// 6mm HeatShrink Tube
     Hs6mm = 415,
@@ -87,11 +128,13 @@ impl From<(MediaKind, u8)> for Media {
         use Media::*;
 
         match v {
+            (LaminatedTape, 4) | (NonLaminatedTape, 4) | (FlexibleTape, 4) => Tze4mm,
             (LaminatedTape, 6) | (NonLaminatedTape, 6) | (FlexibleTape, 6) => Tze6mm,
             (LaminatedTape, 9) | (NonLaminatedTape, 9) | (FlexibleTape, 9) => Tze9mm,
             (LaminatedTape, 12) | (NonLaminatedTape, 12) | (FlexibleTape, 12) => Tze12mm,
             (LaminatedTape, 18) | (NonLaminatedTape, 18) | (FlexibleTape, 18) => Tze18mm,
             (LaminatedTape, 24) | (NonLaminatedTape, 24) | (FlexibleTape, 24) => Tze24mm,
+            (LaminatedTape, 36) | (NonLaminatedTape, 36) | (FlexibleTape, 36) => Tze36mm,
             (HeatShrinkTube, 6) => Hs6mm,
             (HeatShrinkTube, 9) => Hs9mm,
             (HeatShrinkTube, 12)  => Hs12mm,
@@ -103,24 +146,43 @@ impl From<(MediaKind, u8)> for Media {
 }
 
 impl Media {
-    /// Fetch media print area (left margin, print area, right margin)
-    pub fn area(&self) -> (usize, usize, usize) {
+    /// Fetch media print area for a specific resolution
+    /// (left margin, print area, right margin)
+    pub fn area_for_resolution(&self, resolution: DeviceResolution) -> (usize, usize, usize) {
+        use DeviceResolution::*;
         use Media::*;
 
-        match self {
-            Tze6mm => (52, 32, 52),
-            Tze9mm => (39, 50, 39),
-            Tze12mm => (29, 70, 29),
-            Tze18mm => (8, 112, 8),
-            Tze24mm => (0, 128, 0),
+        match (self, resolution) {
+            // 180 DPI media areas
+            (Tze4mm, Dpi180) => (52, 24, 52),
+            (Tze6mm, Dpi180) => (48, 32, 48),
+            (Tze9mm, Dpi180) => (39, 50, 39),
+            (Tze12mm, Dpi180) => (29, 70, 29),
+            (Tze18mm, Dpi180) => (8, 112, 8),
+            (Tze24mm, Dpi180) => (0, 128, 0),
 
-            Hs6mm => (50, 28, 50),
-            Hs9mm => (40, 48, 40),
-            Hs12mm => (31, 66, 31),
-            Hs18mm => (11, 106, 11),
-            Hs24mm => (0, 128, 0),
+            (Hs6mm, Dpi180) => (50, 28, 50),
+            (Hs9mm, Dpi180) => (40, 48, 40),
+            (Hs12mm, Dpi180) => (31, 66, 31),
+            (Hs18mm, Dpi180) => (11, 106, 11),
+            (Hs24mm, Dpi180) => (0, 128, 0),
 
-            Unknown => (0, 0, 0)
+            // 360 DPI media areas
+            (Tze4mm, Dpi360) => (248, 48, 246),
+            (Tze6mm, Dpi360) => (240, 64, 256),
+            (Tze9mm, Dpi360) => (219, 106, 235),
+            (Tze12mm, Dpi360) => (197, 150, 213),
+            (Tze18mm, Dpi360) => (155, 234, 171),
+            (Tze24mm, Dpi360) => (112, 320, 128),
+            (Tze36mm, Dpi360) => (45, 454, 61),
+
+            (Hs6mm, Dpi360) => (244, 56, 260),
+            (Hs9mm, Dpi360) => (224, 96, 240),
+            (Hs12mm, Dpi360) => (206, 132, 222),
+            (Hs18mm, Dpi360) => (166, 212, 182),
+            (Hs24mm, Dpi360) => (144, 256, 160),
+
+            (_, _) => (0, 0, 0),
         }
     }
 
@@ -129,7 +191,7 @@ impl Media {
         use Media::*;
 
         match self {
-            Tze6mm | Tze9mm | Tze12mm | Tze18mm | Tze24mm => true,
+            Tze4mm | Tze6mm | Tze9mm | Tze12mm | Tze18mm | Tze24mm | Tze36mm => true,
             _ => false,
         }
     }
@@ -144,6 +206,7 @@ impl Media {
             Tze12mm => 12,
             Tze18mm => 18,
             Tze24mm => 24,
+            Tze36mm => 36,
             Hs6mm => 6,
             Hs9mm => 9,
             Hs12mm => 12,
@@ -443,6 +506,8 @@ pub struct PrintInfo {
     pub raster_no: u32,
     /// Enable print recovery
     pub recover: bool,
+    /// Device resolution to determine how to set the last page flag
+    pub resolution: DeviceResolution,
 }
 
 impl Default for PrintInfo {
@@ -453,6 +518,7 @@ impl Default for PrintInfo {
             length: Some(0),
             raster_no: 0,
             recover: true,
+            resolution: DeviceResolution::Dpi180,
         }
     }
 }

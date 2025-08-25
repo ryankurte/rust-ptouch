@@ -15,12 +15,13 @@ use crate::Error;
 pub struct Display {
     y: usize,
     y_max: usize,
+    resolution: crate::device::DeviceResolution,
     data: Vec<Vec<u8>>,
 }
 
 impl Display {
-    /// Create a new display with the provided height and minimum width
-    pub fn new(y: usize, min_x: usize) -> Self {
+    /// Create a new display with the provided height, minimum width, and resolution
+    pub fn new(y: usize, min_x: usize, resolution: crate::device::DeviceResolution) -> Self {
         let mut y_max = y;
         while y_max % 8 != 0 {
             y_max += 1;
@@ -29,6 +30,7 @@ impl Display {
         Self {
             y,
             y_max,
+            resolution,
             data: vec![vec![0u8; y_max / 8]; min_x],
         }
     }
@@ -71,21 +73,23 @@ impl Display {
     }
 
 
-    pub fn raster(&self, margins: (usize, usize, usize)) -> Result<Vec<[u8; 16]>, anyhow::Error> {
+    pub fn raster(&self, margins: (usize, usize, usize)) -> Result<Vec<Vec<u8>>, anyhow::Error> {
         let s = self.size();
 
-        println!("Raster display size: {:?} output area: {:?}", s, margins);
+        println!("Raster display size: {:?} output area: {:?} resolution: {:?}", s, margins, self.resolution);
         if s.height != margins.1 as u32 {
             return Err(anyhow::anyhow!("Raster display and output size differ ({:?}, {:?})", s, margins));
         }
 
-        let mut buff = vec![[0u8; 16]; s.width as usize];
+        let line_bytes = self.resolution.line_bytes();
+        let mut buff = vec![vec![0u8; line_bytes]; s.width as usize];
 
         for x in 0..(s.width as usize) {
             for y in 0..(s.height as usize) {
                 let p = self.get(x, y)?;
 
-                let y_offset = y + margins.0 as usize;
+                // We start at the right margin, so use that as the offset to skip.
+                let y_offset = y + margins.2 as usize;
 
                 if p {
                     buff[x][y_offset / 8] |= 1 << 7 - (y_offset % 8);
@@ -166,7 +170,9 @@ mod test {
 
     #[test]
     fn test_display() {
-        let mut d = Display::new(8, 1);
+        use crate::device::DeviceResolution;
+
+        let mut d = Display::new(8, 1, DeviceResolution::Dpi180);
         d.set(0, 0, true).unwrap();
         assert_eq!(d.data, vec![vec![0b0000_0001]]);
         assert_eq!(
@@ -183,7 +189,7 @@ mod test {
             ]
         );
 
-        let mut d = Display::new(8, 1);
+        let mut d = Display::new(8, 1, DeviceResolution::Dpi180);
         d.set(1, 0, true).unwrap();
         assert_eq!(d.data, vec![vec![0b0000_0000], vec![0b0000_0001]]);
         assert_eq!(
@@ -200,7 +206,7 @@ mod test {
             ]
         );
 
-        let mut d = Display::new(8, 1);
+        let mut d = Display::new(8, 1, DeviceResolution::Dpi180);
         d.set(0, 1, true).unwrap();
         assert_eq!(d.data, vec![vec![0b0000_0010]]);
         assert_eq!(
@@ -221,11 +227,12 @@ mod test {
     #[cfg(disabled)]
     #[test]
     fn test_raster() {
-        let mut d = Display::new(112, 1);
+        use crate::device::DeviceResolution;
+
+        let mut d = Display::new(112, 1, DeviceResolution::Dpi180);
         d.set(0, 0, true).unwrap();
         d.set(1, 1, true).unwrap();
         d.set(2, 2, true).unwrap();
-
 
         assert_eq!(
             &d.raster((8, 112, 8)).unwrap(),

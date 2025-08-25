@@ -62,9 +62,9 @@ pub struct Render {
 
 impl Render {
     /// Create a new render instance
-    pub fn new(cfg: RenderConfig) -> Self {
+    pub fn new(cfg: RenderConfig, resolution: crate::device::DeviceResolution) -> Self {
         // Setup virtual display for render data
-        let display = Display::new(cfg.y as usize, cfg.min_x as usize);
+        let display = Display::new(cfg.y as usize, cfg.min_x as usize, resolution);
 
         // Return new renderer
         Self { cfg, display }
@@ -374,7 +374,7 @@ impl Render {
     }
 
     /// Raster data to a ptouch compatible buffer for printing
-    pub fn raster(&self, margins: (usize, usize, usize)) -> Result<Vec<[u8; 16]>, anyhow::Error> {
+    pub fn raster(&self, margins: (usize, usize, usize)) -> Result<Vec<Vec<u8>>, anyhow::Error> {
         self.display.raster(margins)
     }
 
