@@ -10,8 +10,8 @@ use strum_macros::{Display, EnumString, EnumVariantNames};
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
 
-#[cfg(feature = "structopt")]
-use structopt::StructOpt;
+#[cfg(feature = "clap")]
+use clap::Args;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -183,13 +183,13 @@ impl Default for TextOptions {
 
 #[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "structopt", derive(StructOpt))]
+#[cfg_attr(feature = "clap", derive(Args))]
 pub struct BarcodeOptions {
-    #[cfg_attr(feature = "structopt", structopt(default_value="4"))]
+    #[cfg_attr(feature = "clap", arg(default_value="4"))]
     /// Y offset from top and bottom of label
     pub y_offset: usize,
 
-    #[cfg_attr(feature = "structopt", structopt(long))]
+    #[cfg_attr(feature = "clap", arg(long))]
     /// Double barcode width
     pub double: bool,
 }
@@ -205,7 +205,7 @@ impl Default for BarcodeOptions {
 
 #[derive(Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "structopt", derive(StructOpt))]
+#[cfg_attr(feature = "clap", derive(Args))]
 pub struct ImageOptions {
     // TODO: scaling, invert, etc...
 }

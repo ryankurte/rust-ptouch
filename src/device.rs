@@ -253,6 +253,7 @@ bitflags! {
 bitflags! {
     /// Advanced mode flags
     pub struct AdvancedMode: u8 {
+        const NONE = 0;
         const HALF_CUT = (1 << 2);
         const NO_CHAIN = (1 << 3);
         const SPECIAL_TAPE = (1 << 4);
@@ -443,6 +444,8 @@ pub struct PrintInfo {
     pub raster_no: u32,
     /// Enable print recovery
     pub recover: bool,
+    /// No feed if chain is on, do not set for the last label
+    pub chain: bool,
 }
 
 impl Default for PrintInfo {
@@ -453,6 +456,7 @@ impl Default for PrintInfo {
             length: Some(0),
             raster_no: 0,
             recover: true,
+            chain: false,
         }
     }
 }

@@ -5,41 +5,40 @@
 
 use log::{debug, info, warn};
 use simplelog::{LevelFilter, TermLogger, TerminalMode, ColorChoice};
-use structopt::StructOpt;
-use strum::VariantNames;
+use clap::{Parser, Subcommand};
 
 use ptouch::{Options, PTouch, render::RenderTemplate};
 use ptouch::device::{Media, PrintInfo, Status};
 use ptouch::render::{FontKind, Op, Render, RenderConfig};
 
 
-#[derive(Clone, Debug, PartialEq, StructOpt)]
+#[derive(Clone, Debug, PartialEq, Parser)]
 pub struct Flags {
-    #[structopt(flatten)]
+    #[command(flatten)]
     options: Options,
 
-    #[structopt(subcommand)]
+    #[command(subcommand)]
     command: Command,
 
-    #[structopt(long, default_value="16")]
+    #[arg(long, default_value="16")]
     /// Padding for start and end of renders
     pad: usize,
 
-    #[structopt(long, possible_values = &Media::VARIANTS, default_value="tze12mm")]
+    #[arg(value_enum, default_value="tze12mm")]
     /// Default media kind when unable to query this from printer
     media: Media,
 
-    #[structopt(long, default_value = "info")]
+    #[arg(long, default_value = "info")]
     log_level: LevelFilter,
 }
 
-#[derive(Clone, Debug, PartialEq, StructOpt)]
+#[derive(Clone, Debug, PartialEq, Subcommand)]
 pub enum RenderCommand {
     /// Basic text rendering
     Text {
         /// Text value
         text: String,
-        #[structopt(long, possible_values = &FontKind::VARIANTS, default_value="12x16")]
+        #[arg(value_enum, default_value="12x16")]
         /// Text font
         font: FontKind,
     },
@@ -51,7 +50,7 @@ pub enum RenderCommand {
         /// Text value
         text: String,
 
-        #[structopt(long, possible_values = &FontKind::VARIANTS, default_value="12x16")]
+        #[arg(value_enum, default_value="12x16")]
         /// Text font
         font: FontKind,
     },
@@ -84,7 +83,7 @@ pub enum RenderCommand {
     Example,
 }
 
-#[derive(Clone, Debug, PartialEq, StructOpt)]
+#[derive(Clone, Debug, PartialEq, Subcommand)]
 pub enum Command {
     // Fetch printer info
     Info,
@@ -93,25 +92,38 @@ pub enum Command {
     Status,
 
     // Render and display a preview
-    Preview(RenderCommand),
+    Preview{
+        #[command(subcommand)]
+        cmd: RenderCommand,
+    },
 
     // Render to an image file
     Render{
-        #[structopt(long)]
+        #[arg(long)]
         /// Image file to save render output
         file: String,
 
-        #[structopt(subcommand)]
+        #[command(subcommand)]
         cmd: RenderCommand,
     },
 
     // Print data!
-    Print(RenderCommand),
+    Print{
+        #[arg(long)]
+        /// Do not feed and cut label after printing to avoid waste
+        chain: bool,
+
+        #[command(subcommand)]
+        cmd: RenderCommand,
+    },
+
+    /// Feed and cut label, can be used with the "chain" option for print
+    Cut,
 }
 
 fn main() -> anyhow::Result<()> {
     // Parse CLI options
-    let opts = Flags::from_args();
+    let opts = Flags::parse();
 
     // Setup logging
     TermLogger::init(
@@ -166,7 +178,7 @@ fn main() -> anyhow::Result<()> {
     // Run commands that do not _require_ the printer
     match &opts.command {
         #[cfg(feature = "preview")]
-        Command::Preview(cmd) => {
+        Command::Preview{ cmd } => {
             // Inform user if print boundaries are unset
             if connect.is_err() {
                 warn!("Using default media: {}, override with `--media` argument", opts.media);
@@ -187,7 +199,7 @@ fn main() -> anyhow::Result<()> {
             return Ok(());
         },
         #[cfg(not(feature = "preview"))]
-        Command::Preview(_cmd) => {
+        Command::Preview{ _cmd } => {
             warn!("Preview not enabled (or not supported on this platform");
             warn!("Try `render` command to render to image files");
             return Ok(())
@@ -232,7 +244,7 @@ fn main() -> anyhow::Result<()> {
         Command::Status => {
             println!("Status: {:?}", status);
         },
-        Command::Print(cmd) => {
+        Command::Print{ chain, cmd } => {
  
             // Load render operations from command
             let ops = cmd.load(opts.pad)?;
@@ -251,6 +263,7 @@ fn main() -> anyhow::Result<()> {
                 width: Some(status.media_width),
                 length: Some(0),
                 raster_no: data.len() as u32,
+                chain: *chain,
                 ..Default::default()
             };
 
@@ -258,6 +271,15 @@ fn main() -> anyhow::Result<()> {
             ptouch.print_raw(data, &info)?;
 
         },
+        Command::Cut => {
+            let info = PrintInfo {
+                width: Some(status.media_width),
+                length: Some(0),
+                raster_no: media.area().1 as u32,
+                ..Default::default()
+            };
+            ptouch.cut(&info)?;
+        }
         _ => (),
     }
 
@@ -340,3 +362,4 @@ impl RenderCommand {
         }
     }
 }
+
