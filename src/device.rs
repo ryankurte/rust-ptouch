@@ -9,10 +9,11 @@ use crate::Error;
 use bitflags::bitflags;
 
 #[cfg(feature = "strum")]
-use strum_macros::{Display, EnumString, EnumVariantNames};
+use strum_macros::{Display, EnumString, VariantNames};
 
 bitflags::bitflags! {
     /// First error byte
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct Error1: u8 {
         const NO_MEDIA = 0x01;
         const CUTTER_JAM = 0x04;
@@ -23,6 +24,7 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// Second device error type
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct Error2: u8 {
         const WRONG_MEDIA = 0x01;
         const COVER_OPEN = 0x10;
@@ -33,7 +35,7 @@ bitflags::bitflags! {
 /// PTouch device type.
 /// Note that only the p710bt has been tested
 #[derive(Copy, Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "strum", derive(Display, EnumString, EnumVariantNames))]
+#[cfg_attr(feature = "strum", derive(Display, EnumString, VariantNames))]
 #[cfg_attr(feature = "strum", strum(serialize_all = "snake_case"))]
 pub enum PTouchDevice {
     #[cfg_attr(feature = "strum", strum(serialize = "pt-e550w"))]
@@ -48,10 +50,9 @@ pub enum PTouchDevice {
     PtD600 = 0x2074,
 }
 
-
 /// Media width encoding for Status message
 #[derive(Copy, Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "strum", derive(Display, EnumString, EnumVariantNames))]
+#[cfg_attr(feature = "strum", derive(Display, EnumString, VariantNames))]
 #[cfg_attr(feature = "strum", strum(serialize_all = "snake_case"))]
 pub enum Media {
     /// 6mm TZe Tape
@@ -83,8 +84,8 @@ pub enum Media {
 /// Generate a MediaWidth from provided MediaKind and u8 width
 impl From<(MediaKind, u8)> for Media {
     fn from(v: (MediaKind, u8)) -> Self {
-        use MediaKind::*;
         use Media::*;
+        use MediaKind::*;
 
         match v {
             (LaminatedTape, 6) | (NonLaminatedTape, 6) | (FlexibleTape, 6) => Tze6mm,
@@ -94,9 +95,9 @@ impl From<(MediaKind, u8)> for Media {
             (LaminatedTape, 24) | (NonLaminatedTape, 24) | (FlexibleTape, 24) => Tze24mm,
             (HeatShrinkTube, 6) => Hs6mm,
             (HeatShrinkTube, 9) => Hs9mm,
-            (HeatShrinkTube, 12)  => Hs12mm,
-            (HeatShrinkTube, 18)  => Hs18mm,
-            (HeatShrinkTube, 24)  => Hs24mm,
+            (HeatShrinkTube, 12) => Hs12mm,
+            (HeatShrinkTube, 18) => Hs18mm,
+            (HeatShrinkTube, 24) => Hs24mm,
             _ => Unknown,
         }
     }
@@ -120,7 +121,7 @@ impl Media {
             Hs18mm => (11, 106, 11),
             Hs24mm => (0, 128, 0),
 
-            Unknown => (0, 0, 0)
+            Unknown => (0, 0, 0),
         }
     }
 
@@ -180,7 +181,7 @@ impl From<u8> for Phase {
         match v {
             0 => Editing,
             1 => Printing,
-            _ => Unknown
+            _ => Unknown,
         }
     }
 }
@@ -189,14 +190,14 @@ impl From<u8> for Phase {
 impl From<u8> for MediaKind {
     fn from(v: u8) -> Self {
         match v {
-           0x00 => MediaKind::None,
-           0x01 => MediaKind::LaminatedTape,
-           0x03 => MediaKind::NonLaminatedTape,
-           0x11 => MediaKind::HeatShrinkTube,
-           0x14 => MediaKind::FlexibleTape,
-           0xFF => MediaKind::IncompatibleTape,
-           _ => MediaKind::IncompatibleTape,
-       }
+            0x00 => MediaKind::None,
+            0x01 => MediaKind::LaminatedTape,
+            0x03 => MediaKind::NonLaminatedTape,
+            0x11 => MediaKind::HeatShrinkTube,
+            0x14 => MediaKind::FlexibleTape,
+            0xFF => MediaKind::IncompatibleTape,
+            _ => MediaKind::IncompatibleTape,
+        }
     }
 }
 
@@ -227,7 +228,7 @@ impl From<u8> for DeviceStatus {
             0x05 => Notification,
             0x06 => PhaseChange,
             _ => Unknown,
-       }
+        }
     }
 }
 
@@ -244,6 +245,7 @@ pub enum Mode {
 
 bitflags! {
     /// Various mode flags
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct VariousMode: u8 {
         const AUTO_CUT = (1 << 6);
         const MIRROR = (1 << 7);
@@ -252,6 +254,7 @@ bitflags! {
 
 bitflags! {
     /// Advanced mode flags
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct AdvancedMode: u8 {
         const NONE = 0;
         const HALF_CUT = (1 << 2);
@@ -287,8 +290,8 @@ pub enum TapeColour {
     SatinSilver = 0x24,
     BlueD = 0x30,
     RedD = 0x31,
-    FluroOrange=0x40,
-    FluroYellow=0x41,
+    FluroOrange = 0x40,
+    FluroYellow = 0x41,
     BerryPinkS = 0x50,
     LightGrayS = 0x51,
     LimeGreenS = 0x52,
@@ -358,7 +361,7 @@ pub enum TextColour {
 impl From<u8> for TextColour {
     fn from(v: u8) -> TextColour {
         use TextColour::*;
-        
+
         match v {
             0x01 => White,
             0x04 => Red,
@@ -369,7 +372,7 @@ impl From<u8> for TextColour {
             0xf0 => Cleaning,
             0xF1 => Stencil,
             0x02 => Other,
-            0xFF | _=> Incompatible,
+            0xFF | _ => Incompatible,
         }
     }
 }
@@ -397,24 +400,24 @@ impl Status {
     // It returns a default status, which is assumed to be correct to then print.
     pub fn new(media: &Media) -> Result<Status, Error> {
         Ok(Status {
-            model: 0,                                   // The model is not that important, and also the manual only shows the model ID of E550W and E750W
-            error1: Error1::empty(),                    // Assuming there's no error
-            error2: Error2::empty(),                    // Assuming there's no error
-            media_width: media.width() as u8,           // Width given by user in command
-            media_kind: match media.is_tape() {         // Not sure if this is really important, but this is an easy way to detect if it is tape (can't know if laminated or not) or not
+            model: 0, // The model is not that important, and also the manual only shows the model ID of E550W and E750W
+            error1: Error1::empty(), // Assuming there's no error
+            error2: Error2::empty(), // Assuming there's no error
+            media_width: media.width() as u8, // Width given by user in command
+            media_kind: match media.is_tape() {
+                // Not sure if this is really important, but this is an easy way to detect if it is tape (can't know if laminated or not) or not
                 true => MediaKind::LaminatedTape,
-                false => MediaKind::HeatShrinkTube
+                false => MediaKind::HeatShrinkTube,
             },
-            status_type: DeviceStatus::Completed,       // Assuming the printer is ready to print
-            phase: Phase::Editing,                      // Assuming the printer is not printing
-            tape_colour: TapeColour::White,             // By default, assuming the tape is white...
-            text_colour: TextColour::Black,             // ...and the text colour is black. Would maybe be good to let the user change it in the command
+            status_type: DeviceStatus::Completed, // Assuming the printer is ready to print
+            phase: Phase::Editing,                // Assuming the printer is not printing
+            tape_colour: TapeColour::White,       // By default, assuming the tape is white...
+            text_colour: TextColour::Black, // ...and the text colour is black. Would maybe be good to let the user change it in the command
         })
     }
 }
 
 impl From<[u8; 32]> for Status {
-
     fn from(r: [u8; 32]) -> Self {
         Self {
             model: r[0],

@@ -18,7 +18,7 @@ impl Bitmap {
         Self {
             offset,
             width,
-            data: vec![]
+            data: vec![],
         }
     }
 
@@ -50,4 +50,3 @@ impl Bitmap {
         self.data.clone()
     }
 }
-

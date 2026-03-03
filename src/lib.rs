@@ -8,7 +8,7 @@ use std::time::Duration;
 use commands::Commands;
 use device::Status;
 use image::ImageError;
-use log::{trace, debug, error};
+use log::{debug, trace};
 
 #[cfg(feature = "clap")]
 use clap::Parser;
@@ -198,7 +198,7 @@ impl PTouch {
         // Reset device
         if let Err(e) = handle.reset() {
             debug!("Error resetting device handle");
-            return Err(e.into())
+            return Err(e.into());
         }
 
         // Locate endpoints
@@ -255,10 +255,10 @@ impl PTouch {
                 } else {
                     debug!("Kernel driver detach disabled");
                 }
-            },
+            }
             false => {
                 debug!("Kernel driver inactive");
-            },
+            }
         }
 
         // Claim interface for driver
@@ -348,11 +348,10 @@ impl PTouch {
 
     /// Setup the printer and print using raw raster data.
     /// Print output must be shifted and in the correct bit-order for this function.
-    /// 
+    ///
     /// TODO: this is too low level of an interface, should be replaced with higher-level apis
     pub fn print_raw(&mut self, data: Vec<[u8; 16]>, info: &PrintInfo) -> Result<(), Error> {
         // TODO: should we check info (and size) match status here?
-
 
         // Print sequence from raster guide Section 2.1
         // 1. Set to raster mode
@@ -397,7 +396,6 @@ impl PTouch {
         // Execute print operation
         self.print_and_feed()?;
 
-
         // Poll on print completion
         let mut i = 0;
         loop {
@@ -406,7 +404,7 @@ impl PTouch {
                     debug!("Print error: {:?} {:?}", s.error1, s.error2);
                     return Err(Error::PTouch(s.error1, s.error2));
                 }
-    
+
                 if s.status_type == DeviceStatus::PhaseChange {
                     debug!("Started printing");
                 }
@@ -426,7 +424,6 @@ impl PTouch {
 
             std::thread::sleep(Duration::from_secs(1));
         }
-
 
         Ok(())
     }
@@ -475,7 +472,7 @@ impl PTouch {
 
         // Check write length for timeouts
         if n != data.len() {
-            return Err(Error::Timeout)
+            return Err(Error::Timeout);
         }
 
         Ok(())
