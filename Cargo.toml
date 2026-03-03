@@ -38,6 +38,9 @@ tempdir = "0.3.7"
 
 embedded-graphics = "0.8.2"
 embedded-text = "0.7.3"
+embedded-graphics-unicodefonts = "0.2.0"
+# TODO: TTF font support
+embedded-ttf = "0.2.2"
 # TODO: make preview optional
 embedded-graphics-simulator = { version = "0.8.0", optional = true }
 

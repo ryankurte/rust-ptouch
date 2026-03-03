@@ -3,14 +3,13 @@
 // https://github.com/ryankurte/rust-ptouch
 // Copyright 2021 Ryan Kurte
 
-use log::{debug, info, warn};
-use simplelog::{LevelFilter, TermLogger, TerminalMode, ColorChoice};
 use clap::{Parser, Subcommand};
+use log::{debug, info, warn};
+use simplelog::{ColorChoice, LevelFilter, TermLogger, TerminalMode};
 
-use ptouch::{Options, PTouch, render::RenderTemplate};
 use ptouch::device::{Media, PrintInfo, Status};
 use ptouch::render::{FontKind, Op, Render, RenderConfig};
-
+use ptouch::{render::RenderTemplate, Options, PTouch};
 
 #[derive(Clone, Debug, PartialEq, Parser)]
 pub struct Flags {
@@ -20,11 +19,11 @@ pub struct Flags {
     #[command(subcommand)]
     command: Command,
 
-    #[arg(long, default_value="16")]
+    #[arg(long, default_value = "16")]
     /// Padding for start and end of renders
     pad: usize,
 
-    #[arg(value_enum, default_value="tze12mm")]
+    #[arg(long, value_enum, default_value = "tze12mm")]
     /// Default media kind when unable to query this from printer
     media: Media,
 
@@ -38,7 +37,7 @@ pub enum RenderCommand {
     Text {
         /// Text value
         text: String,
-        #[arg(long, value_enum, default_value="10x20")]
+        #[arg(long, value_enum, default_value = "10x20")]
         /// Text font
         font: FontKind,
     },
@@ -50,7 +49,7 @@ pub enum RenderCommand {
         /// Text value
         text: String,
 
-        #[arg(long, value_enum, default_value="10x20")]
+        #[arg(long, value_enum, default_value = "10x20")]
         /// Text font
         font: FontKind,
     },
@@ -70,12 +69,12 @@ pub enum RenderCommand {
         code: String,
     },
     /// Render from template
-    Template{
+    Template {
         /// Template file
         file: String,
     },
     /// Render from image
-    Image{
+    Image {
         /// Image file
         file: String,
     },
@@ -92,13 +91,13 @@ pub enum Command {
     Status,
 
     // Render and display a preview
-    Preview{
+    Preview {
         #[command(subcommand)]
         cmd: RenderCommand,
     },
 
     // Render to an image file
-    Render{
+    Render {
         #[arg(long)]
         /// Image file to save render output
         file: String,
@@ -108,7 +107,7 @@ pub enum Command {
     },
 
     // Print data!
-    Print{
+    Print {
         #[arg(long)]
         /// Do not feed and cut label after printing to avoid waste
         chain: bool,
@@ -135,7 +134,7 @@ fn main() -> anyhow::Result<()> {
     .unwrap();
 
     // Create default render configuration
-    let mut rc = RenderConfig{
+    let mut rc = RenderConfig {
         y: opts.media.area().1 as usize,
         ..Default::default()
     };
@@ -164,29 +163,30 @@ fn main() -> anyhow::Result<()> {
             // Update render config to reflect tape
             rc.y = media.area().1 as usize;
             // TODO: update colours too?
-            
+
             // Return device and mediat width
             Ok((pt, status, media))
-        },
+        }
         Err(e) => Err(e),
     };
 
-
     // TODO: allow RenderConfig override from CLI
-
 
     // Run commands that do not _require_ the printer
     match &opts.command {
         #[cfg(feature = "preview")]
-        Command::Preview{ cmd } => {
+        Command::Preview { cmd } => {
             // Inform user if print boundaries are unset
             if connect.is_err() {
-                warn!("Using default media: {}, override with `--media` argument", opts.media);
+                warn!(
+                    "Using default media: {}, override with `--media` argument",
+                    opts.media
+                );
             }
 
             // Load render operations from command
             let ops = cmd.load(opts.pad)?;
-            
+
             // Create renderer
             let mut r = Render::new(rc);
 
@@ -197,22 +197,25 @@ fn main() -> anyhow::Result<()> {
             r.show()?;
 
             return Ok(());
-        },
+        }
         #[cfg(not(feature = "preview"))]
-        Command::Preview{ _cmd } => {
+        Command::Preview { _cmd } => {
             warn!("Preview not enabled (or not supported on this platform");
             warn!("Try `render` command to render to image files");
-            return Ok(())
+            return Ok(());
         }
-        Command::Render{ file, cmd } => {
+        Command::Render { file, cmd } => {
             // Inform user if print boundaries are unset
             if connect.is_err() {
-                warn!("Using default media: {}, override with `--media` argument", opts.media);
+                warn!(
+                    "Using default media: {}, override with `--media` argument",
+                    opts.media
+                );
             }
 
             // Load render operations from command
             let ops = cmd.load(opts.pad)?;
-            
+
             // Create renderer
             let mut r = Render::new(rc);
 
@@ -223,7 +226,7 @@ fn main() -> anyhow::Result<()> {
             r.save(file)?;
 
             return Ok(());
-        },
+        }
         _ => (),
     }
 
@@ -240,15 +243,14 @@ fn main() -> anyhow::Result<()> {
         Command::Info => {
             let i = ptouch.info()?;
             println!("Info: {:?}", i);
-        },
+        }
         Command::Status => {
             println!("Status: {:?}", status);
-        },
-        Command::Print{ chain, cmd } => {
- 
+        }
+        Command::Print { chain, cmd } => {
             // Load render operations from command
             let ops = cmd.load(opts.pad)?;
-            
+
             // Create renderer
             let mut r = Render::new(rc);
 
@@ -257,7 +259,7 @@ fn main() -> anyhow::Result<()> {
 
             // Generate raster data for printing
             let data = r.raster(media.area())?;
-            
+
             // Setup print info based on media and rastered data
             let info = PrintInfo {
                 width: Some(status.media_width),
@@ -269,8 +271,7 @@ fn main() -> anyhow::Result<()> {
 
             // Print the thing!
             ptouch.print_raw(data, &info)?;
-
-        },
+        }
         Command::Cut => {
             let info = PrintInfo {
                 width: Some(status.media_width),
@@ -288,51 +289,34 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-
 impl RenderCommand {
     pub fn load(&self, pad: usize) -> Result<Vec<Op>, anyhow::Error> {
         match self {
             RenderCommand::Text { text, font } => {
-                let ops = vec![
-                    Op::pad(pad),
-                    Op::text_with_font(text, *font),
-                    Op::pad(pad),
-                ];
+                let ops = vec![Op::pad(pad), Op::text_with_font(text, *font), Op::pad(pad)];
                 Ok(ops)
-            },
+            }
             RenderCommand::QrText { qr, text, font } => {
                 let ops = vec![
                     Op::pad(pad),
                     Op::qr(qr),
-                    Op::text_with_font(text, *font), 
-                    Op::pad(pad)
+                    Op::text_with_font(text, *font),
+                    Op::pad(pad),
                 ];
                 Ok(ops)
-            },
+            }
             RenderCommand::Qr { qr } => {
-                let ops = vec![
-                    Op::pad(pad),
-                    Op::qr(qr),
-                    Op::pad(pad)
-                ];
+                let ops = vec![Op::pad(pad), Op::qr(qr), Op::pad(pad)];
                 Ok(ops)
-            },
+            }
             RenderCommand::Datamatrix { dm } => {
-                let ops = vec![
-                    Op::pad(pad),
-                    Op::datamatrix(dm),
-                    Op::pad(pad)
-                ];
+                let ops = vec![Op::pad(pad), Op::datamatrix(dm), Op::pad(pad)];
                 Ok(ops)
-            },
+            }
             RenderCommand::Barcode { code } => {
-                let ops = vec![
-                    Op::pad(pad),
-                    Op::barcode(code),
-                    Op::pad(pad)
-                ];
+                let ops = vec![Op::pad(pad), Op::barcode(code), Op::pad(pad)];
                 Ok(ops)
-            },
+            }
             RenderCommand::Template { file } => {
                 // Read template file
                 let t = std::fs::read_to_string(file)?;
@@ -340,21 +324,17 @@ impl RenderCommand {
                 let c: RenderTemplate = toml::from_str(&t)?;
                 // Return render operations
                 Ok(c.ops)
-            },
+            }
             RenderCommand::Image { file } => {
-                let ops = vec![
-                    Op::pad(pad),
-                    Op::image(file),
-                    Op::pad(pad)
-                ];
+                let ops = vec![Op::pad(pad), Op::image(file), Op::pad(pad)];
                 Ok(ops)
             }
             RenderCommand::Example => {
                 let ops = vec![
                     Op::pad(pad),
                     Op::qr("https://hello.world"),
-                    Op::text("hello world,,\nhow's it going?"), 
-                    Op::pad(pad)
+                    Op::text("hello world,,\nhow's it going?"),
+                    Op::pad(pad),
                 ];
 
                 Ok(ops)
@@ -362,4 +342,3 @@ impl RenderCommand {
         }
     }
 }
-

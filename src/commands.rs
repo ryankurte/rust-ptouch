@@ -6,23 +6,23 @@
 
 use std::time::Duration;
 
-use log::{trace, debug};
+use log::{debug, trace};
 
-use crate::{Error, PTouch, device::Status};
-use crate::device::{AdvancedMode, Mode, PrintInfo, VariousMode, CompressionMode};
+use crate::device::{AdvancedMode, CompressionMode, Mode, PrintInfo, VariousMode};
+use crate::{device::Status, Error, PTouch};
 
 /// Raw command API for the PTouch device.
 /// This provides low-level access to the device (if desired)
 pub trait Commands {
     /// Null command
     fn null(&mut self) -> Result<(), Error>;
-    
+
     /// Init command, sets up the device for printing
     fn init(&mut self) -> Result<(), Error>;
-    
+
     /// Invalidate command, resets the device
     fn invalidate(&mut self) -> Result<(), Error>;
-    
+
     /// Issue a status request
     fn status_req(&mut self) -> Result<(), Error>;
 
@@ -184,16 +184,16 @@ impl Commands for PTouch {
         buff[1] = (data.len() & 0xFF) as u8;
         buff[2] = (data.len() >> 8) as u8;
 
-        (&mut buff[3..3+data.len()]).copy_from_slice(data);
+        (&mut buff[3..3 + data.len()]).copy_from_slice(data);
 
-        trace!("Raster transfer: {:02x?}", &buff[..3+data.len()]);
+        trace!("Raster transfer: {:02x?}", &buff[..3 + data.len()]);
 
-        self.write(&buff[..3+data.len()], self.timeout)
+        self.write(&buff[..3 + data.len()], self.timeout)
     }
 
     fn raster_zero(&mut self) -> Result<(), Error> {
         debug!("Raster zero line");
-        
+
         self.write(&[0x5a], self.timeout)
     }
 
