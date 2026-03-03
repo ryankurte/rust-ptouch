@@ -8,7 +8,7 @@ use std::time::Duration;
 use commands::Commands;
 use device::Status;
 use image::ImageError;
-use log::{trace, debug, error};
+use log::{trace, debug};
 
 #[cfg(feature = "clap")]
 use clap::Parser;

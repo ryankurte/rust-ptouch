@@ -9,10 +9,11 @@ use crate::Error;
 use bitflags::bitflags;
 
 #[cfg(feature = "strum")]
-use strum_macros::{Display, EnumString, EnumVariantNames};
+use strum_macros::{Display, EnumString, VariantNames};
 
 bitflags::bitflags! {
     /// First error byte
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct Error1: u8 {
         const NO_MEDIA = 0x01;
         const CUTTER_JAM = 0x04;
@@ -23,6 +24,7 @@ bitflags::bitflags! {
 
 bitflags::bitflags! {
     /// Second device error type
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct Error2: u8 {
         const WRONG_MEDIA = 0x01;
         const COVER_OPEN = 0x10;
@@ -33,7 +35,7 @@ bitflags::bitflags! {
 /// PTouch device type.
 /// Note that only the p710bt has been tested
 #[derive(Copy, Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "strum", derive(Display, EnumString, EnumVariantNames))]
+#[cfg_attr(feature = "strum", derive(Display, EnumString, VariantNames))]
 #[cfg_attr(feature = "strum", strum(serialize_all = "snake_case"))]
 pub enum PTouchDevice {
     #[cfg_attr(feature = "strum", strum(serialize = "pt-e550w"))]
@@ -51,7 +53,7 @@ pub enum PTouchDevice {
 
 /// Media width encoding for Status message
 #[derive(Copy, Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "strum", derive(Display, EnumString, EnumVariantNames))]
+#[cfg_attr(feature = "strum", derive(Display, EnumString, VariantNames))]
 #[cfg_attr(feature = "strum", strum(serialize_all = "snake_case"))]
 pub enum Media {
     /// 6mm TZe Tape
@@ -244,6 +246,7 @@ pub enum Mode {
 
 bitflags! {
     /// Various mode flags
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct VariousMode: u8 {
         const AUTO_CUT = (1 << 6);
         const MIRROR = (1 << 7);
@@ -252,6 +255,7 @@ bitflags! {
 
 bitflags! {
     /// Advanced mode flags
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct AdvancedMode: u8 {
         const NONE = 0;
         const HALF_CUT = (1 << 2);

@@ -38,7 +38,7 @@ pub enum RenderCommand {
     Text {
         /// Text value
         text: String,
-        #[arg(value_enum, default_value="12x16")]
+        #[arg(long, value_enum, default_value="10x20")]
         /// Text font
         font: FontKind,
     },
@@ -50,7 +50,7 @@ pub enum RenderCommand {
         /// Text value
         text: String,
 
-        #[arg(value_enum, default_value="12x16")]
+        #[arg(long, value_enum, default_value="10x20")]
         /// Text font
         font: FontKind,
     },

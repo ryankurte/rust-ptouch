@@ -5,8 +5,7 @@
 // Copyright 2021 Ryan Kurte
 
 use embedded_graphics::{
-    prelude::*,
-    pixelcolor::BinaryColor,
+    pixelcolor::BinaryColor, prelude::*, primitives::Rectangle
 };
 
 use crate::Error;
@@ -143,19 +142,37 @@ impl Display {
 
         Ok(Pixel(Point::new(x as i32, y as i32), v))
     }
-}
 
-/// DrawTarget impl for in-memory Display type
-impl DrawTarget<BinaryColor> for Display {
-    type Error = Error;
+    pub fn size(&self) -> Size {
+        Size::new(self.data.len() as u32, self.y as u32)
+    }
 
-    fn draw_pixel(&mut self, pixel: Pixel<BinaryColor>) -> Result<(), Self::Error> {
+    fn draw_pixel(&mut self, pixel: Pixel<BinaryColor>) -> Result<(), Error> {
         let Pixel(coord, color) = pixel;
         self.set(coord.x as usize, coord.y as usize, color.is_on())
     }
+}
 
-    fn size(&self) -> Size {
-        Size::new(self.data.len() as u32, self.y as u32)
+impl Dimensions for Display {
+    fn bounding_box(&self) -> Rectangle {
+        Rectangle::new(Point::zero(), self.size())
+    }
+}
+
+/// DrawTarget impl for in-memory Display type
+impl DrawTarget for Display {
+    type Color = BinaryColor;
+    type Error = Error;
+
+    fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
+    where
+        I: IntoIterator<Item = Pixel<Self::Color>>,
+    {
+        for pixel in pixels {
+            self.draw_pixel(pixel)?;
+        }
+
+        Ok(())
     }
 }
 

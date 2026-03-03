@@ -5,6 +5,7 @@
 // Copyright 2021 Ryan Kurte
 
 use std::path::Path;
+use embedded_text::TextBox;
 use log::debug;
 use image::Luma;
 use barcoders::sym::code39::Code39;
@@ -14,12 +15,8 @@ use datamatrix::{DataMatrix, SymbolList};
 #[cfg(feature = "clap")]
 use clap::Args;
 
-use embedded_graphics::prelude::*;
-use embedded_text::prelude::*;
-
 use embedded_graphics::{
-    pixelcolor::BinaryColor,
-    style::PrimitiveStyle,
+    mono_font::MonoTextStyle, pixelcolor::BinaryColor, prelude::*, primitives::Rectangle
 };
 
 #[cfg(feature = "preview")]
@@ -116,9 +113,6 @@ impl Render {
     }
 
     fn render_text(&mut self, start_x: usize, value: &str, opts: &TextOptions) -> Result<usize, Error> {
-        use embedded_graphics::fonts::*;
-        use embedded_text::style::vertical_overdraw::Hidden;
-
         // TODO: customise styles
 
         // TODO: custom alignment
@@ -143,131 +137,21 @@ impl Render {
             &value,
             Rectangle::new(
                 Point::new(start_x as i32, 0 as i32),
-                Point::new(max_x as i32, self.cfg.y as i32),
+                Size::new(max_x as u32, self.cfg.y as u32),
             ),
+            MonoTextStyle::new(opts.font.as_ref(), BinaryColor::On),
         );
 
-        debug!("Textbox: {:?}", tb);
+        // TODO: implement text alignment
 
-        #[cfg(nope)]
-        let a = match opts.h_align {
-            HAlign::Centre => CenterAligned,
-            HAlign::Left => LeftAligned,
-            HAlign::Right => RightAligned,
-            HAlign::Justify => Justified,
-        };
-        #[cfg(nope)]
-        let v = match opts.v_align {
-            VAlign::Centre => CenterAligned,
-            VAlign::Top => TopAligned,
-            VAlign::Bottom => BottomAligned,
-        };
+        // Render textbox
+        tb.draw(&mut self.display)?;
 
-        let a = CenterAligned;
-        let v = CenterAligned;
-        let h = Exact(Hidden);
-        let l = 4;
-
-        // Render with loaded style
-        let res = match opts.font {
-            FontKind::Font6x6 => {
-                let ts = TextBoxStyleBuilder::new(Font6x6)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font6x8 => {
-                let ts = TextBoxStyleBuilder::new(Font6x8)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font6x12 => {
-                let ts = TextBoxStyleBuilder::new(Font6x12)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font8x16 => {
-                let ts = TextBoxStyleBuilder::new(Font8x16)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font12x16 => {
-                let ts = TextBoxStyleBuilder::new(Font12x16)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font24x32 => {
-                let ts = TextBoxStyleBuilder::new(Font24x32)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-        };
-
-        Ok(res.width as usize)
+        Ok(tb.bounding_box().size.width as usize)
     }
 
     fn pad(&mut self, x: usize, columns: usize) -> Result<usize, Error> {
-        self.display
-            .draw_pixel(Pixel(Point::new((x + columns) as i32, 0), BinaryColor::Off))?;
+        Pixel(Point::new((x + columns) as i32, 0), BinaryColor::Off).draw(&mut self.display)?;
         Ok(columns)
     }
 
@@ -291,8 +175,7 @@ impl Render {
                 image::Rgb([0, 0, 0]) => BinaryColor::On,
                 _ => BinaryColor::Off,
             };
-            let p = Pixel(Point::new(x_offset + x as i32, y_offset + y as i32), c);
-            self.display.draw_pixel(p)?
+            Pixel(Point::new(x_offset + x as i32, y_offset + y as i32), c).draw(&mut self.display)?;
         }
 
         Ok(img.width() as usize + x_offset as usize)
@@ -314,8 +197,8 @@ impl Render {
             let xs = x_offset + x * scale;
             let ys = y_offset + y * scale;
             let r = Rectangle::new(Point::new(xs as i32, ys as i32),
-                                   Point::new((xs+scale-1) as i32, (ys+scale-1) as i32));
-            self.display.draw_rectangle(&r.into_styled(PrimitiveStyle::with_fill(BinaryColor::On)))?;
+                                   Size::new((scale-1) as u32, (scale-1) as u32));
+            self.display.fill_solid(&r, BinaryColor::On)?;
         }
         Ok(bitmap.width()*scale + x_offset)
     }
@@ -336,8 +219,7 @@ impl Render {
                     false => BinaryColor::Off,
                 };
 
-                let p = Pixel(Point::new(x_offset + i as i32, y as i32), c);
-                self.display.draw_pixel(p)?
+                Pixel(Point::new(x_offset + i as i32, y as i32), c).draw(&mut self.display)?;
             }
         }
 
@@ -346,7 +228,7 @@ impl Render {
 
     fn render_image(&mut self, x_start: usize, file: &str, _opts: &ImageOptions) -> Result<usize, Error> {
         // Load image and convert to greyscale
-        let img = image::io::Reader::open(file)?.decode()?;
+        let img = image::ImageReader::open(file)?.decode()?;
         let i = img.clone().into_luma8();
         let d = i.dimensions();
 
@@ -365,8 +247,7 @@ impl Render {
                     false => BinaryColor::Off,
                 };
 
-                let p = Pixel(Point::new(x_offset + x as i32, y_offset + y as i32), c);
-                self.display.draw_pixel(p)?
+                Pixel(Point::new(x_offset + x as i32, y_offset + y as i32), c).draw(&mut self.display)?;
             }
         }
 
@@ -393,7 +274,7 @@ impl Render {
         for y in 0..s.height as usize {
             for x in 0..s.width as usize {
                 let p = self.display.get_pixel(x, y)?;
-                sim_display.draw_pixel(p)?;
+                p.draw(&mut sim_display)?;
             }
         }
 
