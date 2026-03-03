@@ -40,18 +40,18 @@ jobs:
             args: --no-default-features --features=util
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v5
     - uses: FranzDiebold/github-env-vars-action@v1.2.1
       
     - name: Configure toolchain
-      uses: actions-rs/toolchain@v1
+      uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: nightly
         target:  ${{ matrix.target }}
         override: true
     
     - name: Configure caching 
-      uses: actions/cache@v2
+      uses: actions/cache@v5
       # Caching disabled on macos due to https://github.com/actions/cache/issues/403
       if: ${{ matrix.os != 'macos-latest' }}
       with:
@@ -93,7 +93,7 @@ jobs:
 
     - name: Cache vcpkg
       if: ${{ matrix.os == 'windows-latest' }}
-      uses: actions/cache@v2
+      uses: actions/cache@v5
       with:
         key: ${{ matrix.os }}-${{ matrix.target }}
         path: $VCPKG_DIRECTORY
