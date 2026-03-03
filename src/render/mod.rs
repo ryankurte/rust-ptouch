@@ -8,7 +8,6 @@ use barcoders::sym::code39::Code39;
 use datamatrix::{DataMatrix, SymbolList};
 use embedded_text::TextBox;
 use image::Luma;
-use log::debug;
 use qrcode::QrCode;
 use std::path::Path;
 
@@ -284,7 +283,7 @@ impl Render {
         // Fetch rendered size
         let s = self.display.size();
 
-        debug!("Render display size: {:?}", s);
+        log::debug!("Render display size: {:?}", s);
 
         // Create simulated display
         let mut sim_display: SimulatorDisplay<BinaryColor> = SimulatorDisplay::new(s);
