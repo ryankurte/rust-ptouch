@@ -3,13 +3,15 @@
 //
 // https://github.com/ryankurte/rust-ptouch
 // Copyright 2021 Ryan Kurte
+use std::path::Path;
 
 use barcoders::sym::code39::Code39;
 use datamatrix::{DataMatrix, SymbolList};
 use image::Luma;
-use log::debug;
 use qrcode::QrCode;
-use std::path::Path;
+
+#[cfg(feature = "preview")]
+use log::debug;
 
 #[cfg(feature = "clap")]
 use clap::Args;

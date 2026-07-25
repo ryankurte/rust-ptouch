@@ -23,14 +23,10 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             output: ptouch-util
-            args: --no-default-features --features=util
-          - target: armv7-unknown-linux-gnueabihf 
+          - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             output: ptouch-util
-            apt-arch: armhf
-          - target: x86_64-apple-darwin
-            os: macos-latest
-            output: ptouch-util
+            apt-arch: arm64
           - target: aarch64-apple-darwin
             os: macos-latest
             output: ptouch-util
@@ -70,7 +66,7 @@ jobs:
 
     - name: Install deps (foreign architecture)
       if: ${{ matrix.apt-arch }}
-      uses: ryankurte/action-apt@v0.3.0
+      uses: ryankurte/action-apt@v0.4.0
       with:
         arch: ${{ matrix.apt-arch }}
         packages: libusb-dev:${{ matrix.apt-arch }} libusb-1.0-0-dev:${{ matrix.apt-arch }} libsdl2-dev:${{ matrix.apt-arch }}
