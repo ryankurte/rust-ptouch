@@ -199,8 +199,8 @@ fn main() -> anyhow::Result<()> {
             return Ok(());
         }
         #[cfg(not(feature = "preview"))]
-        Command::Preview { _cmd } => {
-            warn!("Preview not enabled (or not supported on this platform");
+        Command::Preview { cmd: _ } => {
+            warn!("Preview not enabled (or not supported on this platform)");
             warn!("Try `render` command to render to image files");
             return Ok(());
         }
