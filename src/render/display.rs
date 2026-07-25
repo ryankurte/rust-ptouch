@@ -4,10 +4,7 @@
 // https://github.com/ryankurte/rust-ptouch
 // Copyright 2021 Ryan Kurte
 
-use embedded_graphics::{
-    prelude::*,
-    pixelcolor::BinaryColor,
-};
+use embedded_graphics::{pixelcolor::BinaryColor, prelude::*};
 
 use crate::Error;
 
@@ -70,13 +67,16 @@ impl Display {
         Ok(buff)
     }
 
-
     pub fn raster(&self, margins: (usize, usize, usize)) -> Result<Vec<[u8; 16]>, anyhow::Error> {
         let s = self.populated_size();
 
         println!("Raster display size: {:?} output area: {:?}", s, margins);
         if s.height != margins.1 as u32 {
-            return Err(anyhow::anyhow!("Raster display and output size differ ({:?}, {:?})", s, margins));
+            return Err(anyhow::anyhow!(
+                "Raster display and output size differ ({:?}, {:?})",
+                s,
+                margins
+            ));
         }
 
         let mut buff = vec![[0u8; 16]; s.width as usize];
@@ -249,13 +249,12 @@ mod test {
         d.set(1, 1, true).unwrap();
         d.set(2, 2, true).unwrap();
 
-
         assert_eq!(
             &d.raster((8, 112, 8)).unwrap(),
             &[
-                [0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, ],
-                [0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, ],
-                [0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, ],
+                [0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,],
+                [0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,],
+                [0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,],
             ]
         );
     }

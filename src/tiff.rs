@@ -86,13 +86,13 @@ pub fn uncompress(data: &[u8]) -> Vec<u8> {
 
         if d < 0 {
             // -ve indicates repeated chars
-            let mut r = vec![data[i+1]; (-d+1) as usize];
+            let mut r = vec![data[i + 1]; (-d + 1) as usize];
             u.append(&mut r);
             i += 2;
         } else {
             // +ve indicates literal sequence
             let c = d as usize;
-            u.extend_from_slice(&data[i+1..i+c+2]);
+            u.extend_from_slice(&data[i + 1..i + c + 2]);
             i += c + 2;
         }
 
@@ -101,7 +101,7 @@ pub fn uncompress(data: &[u8]) -> Vec<u8> {
         }
     }
 
-    return u
+    return u;
 }
 
 #[cfg(test)]

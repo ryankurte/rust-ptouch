@@ -4,12 +4,12 @@
 // https://github.com/ryankurte/rust-ptouch
 // Copyright 2021 Ryan Kurte
 
-use std::path::Path;
-use log::debug;
-use image::Luma;
 use barcoders::sym::code39::Code39;
-use qrcode::QrCode;
 use datamatrix::{DataMatrix, SymbolList};
+use image::Luma;
+use log::debug;
+use qrcode::QrCode;
+use std::path::Path;
 
 #[cfg(feature = "clap")]
 use clap::Args;
@@ -100,7 +100,6 @@ impl Render {
 
         Ok(())
     }
-    
 
     /// Execute render operations
     pub fn render(&mut self, ops: &[Op]) -> Result<&Self, Error> {
@@ -108,11 +107,11 @@ impl Render {
         for operation in ops {
             x += match operation {
                 Op::Text { text, opts } => self.render_text(x, text, opts)?,
-                Op::Pad{ count } => self.pad(x, *count)?,
-                Op::Qr{ code } => self.render_qrcode(x, code)?,
-                Op::DataMatrix{ code } => self.render_datamatrix(x, code)?,
-                Op::Barcode{ code, opts } => self.render_barcode(x, code, opts)?,
-                Op::Image{ file, opts } => self.render_image(x, file, opts)?,
+                Op::Pad { count } => self.pad(x, *count)?,
+                Op::Qr { code } => self.render_qrcode(x, code)?,
+                Op::DataMatrix { code } => self.render_datamatrix(x, code)?,
+                Op::Barcode { code, opts } => self.render_barcode(x, code, opts)?,
+                Op::Image { file, opts } => self.render_image(x, file, opts)?,
             }
         }
 
@@ -121,7 +120,12 @@ impl Render {
         Ok(self)
     }
 
-    fn render_text(&mut self, start_x: usize, value: &str, opts: &TextOptions) -> Result<usize, Error> {
+    fn render_text(
+        &mut self,
+        start_x: usize,
+        value: &str,
+        opts: &TextOptions,
+    ) -> Result<usize, Error> {
         // TODO: custom alignment
 
         // Fix for escaped newlines from shell
@@ -142,15 +146,13 @@ impl Render {
             Size::new((max_x - start_x) as u32, self.cfg.y as u32),
         );
 
-        #[cfg(nope)]
-        let a = match opts.h_align {
+        let h_a = match opts.h_align {
             HAlign::Centre => HorizontalAlignment::Center,
             HAlign::Left => HorizontalAlignment::Left,
             HAlign::Right => HorizontalAlignment::Right,
-            HAlign::Justify => HorizontalAlignment::Justified,
         };
-        #[cfg(nope)]
-        let v = match opts.v_align {
+
+        let v_a = match opts.v_align {
             VAlign::Centre => VerticalAlignment::Middle,
             VAlign::Top => VerticalAlignment::Top,
             VAlign::Bottom => VerticalAlignment::Bottom,
@@ -159,8 +161,8 @@ impl Render {
         let character_style = MonoTextStyle::new(opts.font.font(), BinaryColor::On);
         let textbox_style = TextBoxStyleBuilder::new()
             .height_mode(HeightMode::Exact(VerticalOverdraw::Hidden))
-            .alignment(HorizontalAlignment::Center)
-            .vertical_alignment(VerticalAlignment::Middle)
+            .alignment(h_a)
+            .vertical_alignment(v_a)
             .line_height(LineHeight::Pixels(opts.font.char_height() as u32 + 4))
             .build();
 
@@ -180,7 +182,8 @@ impl Render {
     fn render_qrcode(&mut self, x_start: usize, value: &str) -> Result<usize, Error> {
         // Generate QR
         let qr = QrCode::new(value).unwrap();
-        let img = qr.render()
+        let img = qr
+            .render()
             .dark_color(image::Rgb([0, 0, 0]))
             .light_color(image::Rgb([255, 255, 255]))
             .quiet_zone(false)
@@ -216,17 +219,25 @@ impl Render {
         let x_offset = x_start;
         let y_offset = ((self.cfg.y as i32 - (bitmap.height() * scale) as i32) / 2) as usize;
 
-        for (x,y) in bitmap.pixels() {
+        for (x, y) in bitmap.pixels() {
             let xs = x_offset + x * scale;
             let ys = y_offset + y * scale;
-            let r = Rectangle::new(Point::new(xs as i32, ys as i32),
-                                   Size::new(scale as u32, scale as u32));
-            r.into_styled(PrimitiveStyle::with_fill(BinaryColor::On)).draw(&mut self.display)?;
+            let r = Rectangle::new(
+                Point::new(xs as i32, ys as i32),
+                Size::new(scale as u32, scale as u32),
+            );
+            r.into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
+                .draw(&mut self.display)?;
         }
-        Ok(bitmap.width()*scale + x_offset)
+        Ok(bitmap.width() * scale + x_offset)
     }
 
-    fn render_barcode(&mut self, x_start: usize, value: &str, opts: &BarcodeOptions) -> Result<usize, Error> {
+    fn render_barcode(
+        &mut self,
+        x_start: usize,
+        value: &str,
+        opts: &BarcodeOptions,
+    ) -> Result<usize, Error> {
         let barcode = Code39::new(value).unwrap();
         let encoded: Vec<u8> = barcode.encode();
 
@@ -236,7 +247,7 @@ impl Render {
         for i in 0..encoded.len() {
             //let v = (encoded[i / 8] & ( 1 << (i % 8) ) ) == 0;
 
-            for y in opts.y_offset..self.cfg.y-opts.y_offset {
+            for y in opts.y_offset..self.cfg.y - opts.y_offset {
                 let c = match encoded[i] != 0 {
                     true => BinaryColor::On,
                     false => BinaryColor::Off,
@@ -250,7 +261,12 @@ impl Render {
         Ok(encoded.len() + x_offset as usize)
     }
 
-    fn render_image(&mut self, x_start: usize, file: &str, _opts: &ImageOptions) -> Result<usize, Error> {
+    fn render_image(
+        &mut self,
+        x_start: usize,
+        file: &str,
+        _opts: &ImageOptions,
+    ) -> Result<usize, Error> {
         // Load image and convert to greyscale
         let img = image::io::Reader::open(file)?.decode()?;
         let i = img.clone().into_luma8();
