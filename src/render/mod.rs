@@ -3,23 +3,31 @@
 //
 // https://github.com/ryankurte/rust-ptouch
 // Copyright 2021 Ryan Kurte
-
 use std::path::Path;
-use log::debug;
-use image::Luma;
+
 use barcoders::sym::code39::Code39;
-use qrcode::QrCode;
 use datamatrix::{DataMatrix, SymbolList};
+use image::Luma;
+use qrcode::QrCode;
+
+#[cfg(feature = "preview")]
+use log::debug;
 
 #[cfg(feature = "clap")]
 use clap::Args;
 
 use embedded_graphics::prelude::*;
-use embedded_text::prelude::*;
+use embedded_text::{
+    alignment::{HorizontalAlignment, VerticalAlignment},
+    style::{HeightMode, TextBoxStyleBuilder, VerticalOverdraw},
+    TextBox,
+};
 
 use embedded_graphics::{
+    mono_font::MonoTextStyle,
     pixelcolor::BinaryColor,
-    style::PrimitiveStyle,
+    primitives::{PrimitiveStyle, Rectangle},
+    text::LineHeight,
 };
 
 #[cfg(feature = "preview")]
@@ -73,7 +81,7 @@ impl Render {
     /// Save the render buffer as an image
     pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), anyhow::Error> {
         // Fetch current display size
-        let size = self.display.size();
+        let size = self.display.populated_size();
 
         // Create image
         let i = image::DynamicImage::new_luma8(size.width, size.height);
@@ -94,7 +102,6 @@ impl Render {
 
         Ok(())
     }
-    
 
     /// Execute render operations
     pub fn render(&mut self, ops: &[Op]) -> Result<&Self, Error> {
@@ -102,11 +109,11 @@ impl Render {
         for operation in ops {
             x += match operation {
                 Op::Text { text, opts } => self.render_text(x, text, opts)?,
-                Op::Pad{ count } => self.pad(x, *count)?,
-                Op::Qr{ code } => self.render_qrcode(x, code)?,
-                Op::DataMatrix{ code } => self.render_datamatrix(x, code)?,
-                Op::Barcode{ code, opts } => self.render_barcode(x, code, opts)?,
-                Op::Image{ file, opts } => self.render_image(x, file, opts)?,
+                Op::Pad { count } => self.pad(x, *count)?,
+                Op::Qr { code } => self.render_qrcode(x, code)?,
+                Op::DataMatrix { code } => self.render_datamatrix(x, code)?,
+                Op::Barcode { code, opts } => self.render_barcode(x, code, opts)?,
+                Op::Image { file, opts } => self.render_image(x, file, opts)?,
             }
         }
 
@@ -115,16 +122,13 @@ impl Render {
         Ok(self)
     }
 
-    fn render_text(&mut self, start_x: usize, value: &str, opts: &TextOptions) -> Result<usize, Error> {
-        use embedded_graphics::fonts::*;
-        use embedded_text::style::vertical_overdraw::Hidden;
-
-        // TODO: customise styles
-
+    fn render_text(
+        &mut self,
+        start_x: usize,
+        value: &str,
+        opts: &TextOptions,
+    ) -> Result<usize, Error> {
         // TODO: custom alignment
-
-        // TODO: clean this up when updated embedded-graphics font API lands 
-        // https://github.com/embedded-graphics/embedded-graphics/issues/511
 
         // Fix for escaped newlines from shell
         // Otherwise "\n" becomes "\\n" and nothing works quite right
@@ -139,130 +143,36 @@ impl Render {
         let max_x = self.cfg.max_x.min(start_x + max_line_x);
 
         // Create textbox instance
-        let tb = TextBox::new(
-            &value,
-            Rectangle::new(
-                Point::new(start_x as i32, 0 as i32),
-                Point::new(max_x as i32, self.cfg.y as i32),
-            ),
+        let bounds = Rectangle::new(
+            Point::new(start_x as i32, 0),
+            Size::new((max_x - start_x) as u32, self.cfg.y as u32),
         );
 
-        debug!("Textbox: {:?}", tb);
-
-        #[cfg(nope)]
-        let a = match opts.h_align {
-            HAlign::Centre => CenterAligned,
-            HAlign::Left => LeftAligned,
-            HAlign::Right => RightAligned,
-            HAlign::Justify => Justified,
-        };
-        #[cfg(nope)]
-        let v = match opts.v_align {
-            VAlign::Centre => CenterAligned,
-            VAlign::Top => TopAligned,
-            VAlign::Bottom => BottomAligned,
+        let h_a = match opts.h_align {
+            HAlign::Centre => HorizontalAlignment::Center,
+            HAlign::Left => HorizontalAlignment::Left,
+            HAlign::Right => HorizontalAlignment::Right,
         };
 
-        let a = CenterAligned;
-        let v = CenterAligned;
-        let h = Exact(Hidden);
-        let l = 4;
-
-        // Render with loaded style
-        let res = match opts.font {
-            FontKind::Font6x6 => {
-                let ts = TextBoxStyleBuilder::new(Font6x6)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font6x8 => {
-                let ts = TextBoxStyleBuilder::new(Font6x8)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font6x12 => {
-                let ts = TextBoxStyleBuilder::new(Font6x12)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font8x16 => {
-                let ts = TextBoxStyleBuilder::new(Font8x16)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font12x16 => {
-                let ts = TextBoxStyleBuilder::new(Font12x16)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font24x32 => {
-                let ts = TextBoxStyleBuilder::new(Font24x32)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
+        let v_a = match opts.v_align {
+            VAlign::Centre => VerticalAlignment::Middle,
+            VAlign::Top => VerticalAlignment::Top,
+            VAlign::Bottom => VerticalAlignment::Bottom,
         };
 
-        Ok(res.width as usize)
+        let character_style = MonoTextStyle::new(opts.font.font(), BinaryColor::On);
+        let textbox_style = TextBoxStyleBuilder::new()
+            .height_mode(HeightMode::Exact(VerticalOverdraw::Hidden))
+            .alignment(h_a)
+            .vertical_alignment(v_a)
+            .line_height(LineHeight::Pixels(opts.font.char_height() as u32 + 4))
+            .build();
+
+        let tb = TextBox::with_textbox_style(&value, bounds, character_style, textbox_style);
+
+        tb.draw(&mut self.display).unwrap();
+
+        Ok(tb.bounding_box().size.width as usize)
     }
 
     fn pad(&mut self, x: usize, columns: usize) -> Result<usize, Error> {
@@ -274,7 +184,8 @@ impl Render {
     fn render_qrcode(&mut self, x_start: usize, value: &str) -> Result<usize, Error> {
         // Generate QR
         let qr = QrCode::new(value).unwrap();
-        let img = qr.render()
+        let img = qr
+            .render()
             .dark_color(image::Rgb([0, 0, 0]))
             .light_color(image::Rgb([255, 255, 255]))
             .quiet_zone(false)
@@ -310,17 +221,25 @@ impl Render {
         let x_offset = x_start;
         let y_offset = ((self.cfg.y as i32 - (bitmap.height() * scale) as i32) / 2) as usize;
 
-        for (x,y) in bitmap.pixels() {
+        for (x, y) in bitmap.pixels() {
             let xs = x_offset + x * scale;
             let ys = y_offset + y * scale;
-            let r = Rectangle::new(Point::new(xs as i32, ys as i32),
-                                   Point::new((xs+scale-1) as i32, (ys+scale-1) as i32));
-            self.display.draw_rectangle(&r.into_styled(PrimitiveStyle::with_fill(BinaryColor::On)))?;
+            let r = Rectangle::new(
+                Point::new(xs as i32, ys as i32),
+                Size::new(scale as u32, scale as u32),
+            );
+            r.into_styled(PrimitiveStyle::with_fill(BinaryColor::On))
+                .draw(&mut self.display)?;
         }
-        Ok(bitmap.width()*scale + x_offset)
+        Ok(bitmap.width() * scale + x_offset)
     }
 
-    fn render_barcode(&mut self, x_start: usize, value: &str, opts: &BarcodeOptions) -> Result<usize, Error> {
+    fn render_barcode(
+        &mut self,
+        x_start: usize,
+        value: &str,
+        opts: &BarcodeOptions,
+    ) -> Result<usize, Error> {
         let barcode = Code39::new(value).unwrap();
         let encoded: Vec<u8> = barcode.encode();
 
@@ -330,7 +249,7 @@ impl Render {
         for i in 0..encoded.len() {
             //let v = (encoded[i / 8] & ( 1 << (i % 8) ) ) == 0;
 
-            for y in opts.y_offset..self.cfg.y-opts.y_offset {
+            for y in opts.y_offset..self.cfg.y - opts.y_offset {
                 let c = match encoded[i] != 0 {
                     true => BinaryColor::On,
                     false => BinaryColor::Off,
@@ -344,7 +263,12 @@ impl Render {
         Ok(encoded.len() + x_offset as usize)
     }
 
-    fn render_image(&mut self, x_start: usize, file: &str, _opts: &ImageOptions) -> Result<usize, Error> {
+    fn render_image(
+        &mut self,
+        x_start: usize,
+        file: &str,
+        _opts: &ImageOptions,
+    ) -> Result<usize, Error> {
         // Load image and convert to greyscale
         let img = image::io::Reader::open(file)?.decode()?;
         let i = img.clone().into_luma8();
@@ -382,7 +306,7 @@ impl Render {
     #[cfg(feature = "preview")]
     pub fn show(&self) -> Result<(), anyhow::Error> {
         // Fetch rendered size
-        let s = self.display.size();
+        let s = self.display.populated_size();
 
         debug!("Render display size: {:?}", s);
 
@@ -393,7 +317,7 @@ impl Render {
         for y in 0..s.height as usize {
             for x in 0..s.width as usize {
                 let p = self.display.get_pixel(x, y)?;
-                sim_display.draw_pixel(p)?;
+                p.draw(&mut sim_display)?;
             }
         }
 
