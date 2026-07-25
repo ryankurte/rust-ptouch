@@ -13,6 +13,9 @@ use serde::{Serialize, Deserialize};
 #[cfg(feature = "clap")]
 use clap::Args;
 
+use embedded_graphics::mono_font::{ascii::FONT_6X9, MonoFont};
+use embedded_vintage_fonts::{FONT_6X8, FONT_6X12, FONT_8X16, FONT_12X16, FONT_24X32};
+
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct RenderTemplate {
@@ -117,30 +120,28 @@ pub enum FontKind {
 }
 
 impl FontKind {
-    pub fn char_width(&self) -> usize {
-        use embedded_graphics::fonts::*;
-
+    /// Fetch the embedded-graphics MonoFont matching this font kind.
+    ///
+    /// `Font6x8`/`Font6x12`/`Font8x16`/`Font12x16`/`Font24x32` use embedded-vintage-fonts,
+    /// which republishes the exact bitmaps embedded-graphics 0.6 used to ship. There is no
+    /// 6x6 equivalent anywhere, so `Font6x6` falls back to the closest built-in font.
+    pub fn font(&self) -> &'static MonoFont<'static> {
         match self {
-            FontKind::Font6x6 => Font6x6::CHARACTER_SIZE.width as usize,
-            FontKind::Font6x8 => Font6x8::CHARACTER_SIZE.width as usize,
-            FontKind::Font6x12 => Font6x12::CHARACTER_SIZE.width as usize,
-            FontKind::Font8x16 => Font8x16::CHARACTER_SIZE.width as usize,
-            FontKind::Font12x16 => Font12x16::CHARACTER_SIZE.width as usize,
-            FontKind::Font24x32 => Font24x32::CHARACTER_SIZE.width as usize,
+            FontKind::Font6x6 => &FONT_6X9,
+            FontKind::Font6x8 => &FONT_6X8,
+            FontKind::Font6x12 => &FONT_6X12,
+            FontKind::Font8x16 => &FONT_8X16,
+            FontKind::Font12x16 => &FONT_12X16,
+            FontKind::Font24x32 => &FONT_24X32,
         }
     }
 
-    pub fn char_height(&self) -> usize {
-        use embedded_graphics::fonts::*;
+    pub fn char_width(&self) -> usize {
+        self.font().character_size.width as usize
+    }
 
-        match self {
-            FontKind::Font6x6 => Font6x6::CHARACTER_SIZE.height as usize,
-            FontKind::Font6x8 => Font6x8::CHARACTER_SIZE.height as usize,
-            FontKind::Font6x12 => Font6x12::CHARACTER_SIZE.height as usize,
-            FontKind::Font8x16 => Font8x16::CHARACTER_SIZE.height as usize,
-            FontKind::Font12x16 => Font12x16::CHARACTER_SIZE.height as usize,
-            FontKind::Font24x32 => Font24x32::CHARACTER_SIZE.height as usize,
-        }
+    pub fn char_height(&self) -> usize {
+        self.font().character_size.height as usize
     }
 }
 

@@ -72,7 +72,7 @@ impl Display {
 
 
     pub fn raster(&self, margins: (usize, usize, usize)) -> Result<Vec<[u8; 16]>, anyhow::Error> {
-        let s = self.size();
+        let s = self.populated_size();
 
         println!("Raster display size: {:?} output area: {:?}", s, margins);
         if s.height != margins.1 as u32 {
@@ -145,17 +145,40 @@ impl Display {
     }
 }
 
-/// DrawTarget impl for in-memory Display type
-impl DrawTarget<BinaryColor> for Display {
-    type Error = Error;
-
-    fn draw_pixel(&mut self, pixel: Pixel<BinaryColor>) -> Result<(), Self::Error> {
+impl Display {
+    /// Set a pixel via a `Pixel` object
+    pub fn draw_pixel(&mut self, pixel: Pixel<BinaryColor>) -> Result<(), Error> {
         let Pixel(coord, color) = pixel;
         self.set(coord.x as usize, coord.y as usize, color.is_on())
     }
 
-    fn size(&self) -> Size {
+    /// Fetch the size of the currently drawn / populated area, used to bound saved images
+    pub fn populated_size(&self) -> Size {
         Size::new(self.data.len() as u32, self.y as u32)
+    }
+}
+
+impl OriginDimensions for Display {
+    fn size(&self) -> Size {
+        // Return a large size so the text buffer doesn't clip, which we
+        // then crop down using [Display::populated_size] when saving / printing the image.
+        Size::new(1_000_000, self.y as u32)
+    }
+}
+
+/// [DrawTarget] impl for in-memory Display type
+impl DrawTarget for Display {
+    type Color = BinaryColor;
+    type Error = Error;
+
+    fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
+    where
+        I: IntoIterator<Item = Pixel<BinaryColor>>,
+    {
+        for pixel in pixels {
+            self.draw_pixel(pixel)?;
+        }
+        Ok(())
     }
 }
 

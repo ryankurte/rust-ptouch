@@ -1,0 +1,4 @@
+[env]
+# Patch to support SDL2's CMakeLists.txt
+CMAKE_POLICY_VERSION_MINIMUM = "3.5"
+

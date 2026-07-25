@@ -15,11 +15,17 @@ use datamatrix::{DataMatrix, SymbolList};
 use clap::Args;
 
 use embedded_graphics::prelude::*;
-use embedded_text::prelude::*;
+use embedded_text::{
+    alignment::{HorizontalAlignment, VerticalAlignment},
+    style::{HeightMode, TextBoxStyleBuilder, VerticalOverdraw},
+    TextBox,
+};
 
 use embedded_graphics::{
+    mono_font::MonoTextStyle,
     pixelcolor::BinaryColor,
-    style::PrimitiveStyle,
+    primitives::{PrimitiveStyle, Rectangle},
+    text::LineHeight,
 };
 
 #[cfg(feature = "preview")]
@@ -73,7 +79,7 @@ impl Render {
     /// Save the render buffer as an image
     pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), anyhow::Error> {
         // Fetch current display size
-        let size = self.display.size();
+        let size = self.display.populated_size();
 
         // Create image
         let i = image::DynamicImage::new_luma8(size.width, size.height);
@@ -116,15 +122,7 @@ impl Render {
     }
 
     fn render_text(&mut self, start_x: usize, value: &str, opts: &TextOptions) -> Result<usize, Error> {
-        use embedded_graphics::fonts::*;
-        use embedded_text::style::vertical_overdraw::Hidden;
-
-        // TODO: customise styles
-
         // TODO: custom alignment
-
-        // TODO: clean this up when updated embedded-graphics font API lands 
-        // https://github.com/embedded-graphics/embedded-graphics/issues/511
 
         // Fix for escaped newlines from shell
         // Otherwise "\n" becomes "\\n" and nothing works quite right
@@ -139,130 +137,38 @@ impl Render {
         let max_x = self.cfg.max_x.min(start_x + max_line_x);
 
         // Create textbox instance
-        let tb = TextBox::new(
-            &value,
-            Rectangle::new(
-                Point::new(start_x as i32, 0 as i32),
-                Point::new(max_x as i32, self.cfg.y as i32),
-            ),
+        let bounds = Rectangle::new(
+            Point::new(start_x as i32, 0),
+            Size::new((max_x - start_x) as u32, self.cfg.y as u32),
         );
-
-        debug!("Textbox: {:?}", tb);
 
         #[cfg(nope)]
         let a = match opts.h_align {
-            HAlign::Centre => CenterAligned,
-            HAlign::Left => LeftAligned,
-            HAlign::Right => RightAligned,
-            HAlign::Justify => Justified,
+            HAlign::Centre => HorizontalAlignment::Center,
+            HAlign::Left => HorizontalAlignment::Left,
+            HAlign::Right => HorizontalAlignment::Right,
+            HAlign::Justify => HorizontalAlignment::Justified,
         };
         #[cfg(nope)]
         let v = match opts.v_align {
-            VAlign::Centre => CenterAligned,
-            VAlign::Top => TopAligned,
-            VAlign::Bottom => BottomAligned,
+            VAlign::Centre => VerticalAlignment::Middle,
+            VAlign::Top => VerticalAlignment::Top,
+            VAlign::Bottom => VerticalAlignment::Bottom,
         };
 
-        let a = CenterAligned;
-        let v = CenterAligned;
-        let h = Exact(Hidden);
-        let l = 4;
+        let character_style = MonoTextStyle::new(opts.font.font(), BinaryColor::On);
+        let textbox_style = TextBoxStyleBuilder::new()
+            .height_mode(HeightMode::Exact(VerticalOverdraw::Hidden))
+            .alignment(HorizontalAlignment::Center)
+            .vertical_alignment(VerticalAlignment::Middle)
+            .line_height(LineHeight::Pixels(opts.font.char_height() as u32 + 4))
+            .build();
 
-        // Render with loaded style
-        let res = match opts.font {
-            FontKind::Font6x6 => {
-                let ts = TextBoxStyleBuilder::new(Font6x6)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
+        let tb = TextBox::with_textbox_style(&value, bounds, character_style, textbox_style);
 
-                let tb = tb.into_styled(ts);
+        tb.draw(&mut self.display).unwrap();
 
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font6x8 => {
-                let ts = TextBoxStyleBuilder::new(Font6x8)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font6x12 => {
-                let ts = TextBoxStyleBuilder::new(Font6x12)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font8x16 => {
-                let ts = TextBoxStyleBuilder::new(Font8x16)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font12x16 => {
-                let ts = TextBoxStyleBuilder::new(Font12x16)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-            FontKind::Font24x32 => {
-                let ts = TextBoxStyleBuilder::new(Font24x32)
-                    .text_color(BinaryColor::On)
-                    .height_mode(h)
-                    .alignment(a)
-                    .line_spacing(l)
-                    .vertical_alignment(v)
-                    .build();
-
-                let tb = tb.into_styled(ts);
-
-                tb.draw(&mut self.display).unwrap();
-
-                tb.size()
-            }
-        };
-
-        Ok(res.width as usize)
+        Ok(tb.bounding_box().size.width as usize)
     }
 
     fn pad(&mut self, x: usize, columns: usize) -> Result<usize, Error> {
@@ -314,8 +220,8 @@ impl Render {
             let xs = x_offset + x * scale;
             let ys = y_offset + y * scale;
             let r = Rectangle::new(Point::new(xs as i32, ys as i32),
-                                   Point::new((xs+scale-1) as i32, (ys+scale-1) as i32));
-            self.display.draw_rectangle(&r.into_styled(PrimitiveStyle::with_fill(BinaryColor::On)))?;
+                                   Size::new(scale as u32, scale as u32));
+            r.into_styled(PrimitiveStyle::with_fill(BinaryColor::On)).draw(&mut self.display)?;
         }
         Ok(bitmap.width()*scale + x_offset)
     }
@@ -382,7 +288,7 @@ impl Render {
     #[cfg(feature = "preview")]
     pub fn show(&self) -> Result<(), anyhow::Error> {
         // Fetch rendered size
-        let s = self.display.size();
+        let s = self.display.populated_size();
 
         debug!("Render display size: {:?}", s);
 
@@ -393,7 +299,7 @@ impl Render {
         for y in 0..s.height as usize {
             for x in 0..s.width as usize {
                 let p = self.display.get_pixel(x, y)?;
-                sim_display.draw_pixel(p)?;
+                p.draw(&mut sim_display)?;
             }
         }
 
