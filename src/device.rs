@@ -46,6 +46,8 @@ pub enum PTouchDevice {
     PtP710Bt = 0x20af,
     #[cfg_attr(feature = "strum", strum(serialize = "pt-d600"))]
     PtD600 = 0x2074,
+    #[cfg_attr(feature = "strum", strum(serialize = "pt-e720bt"))]
+    PtE720BT = 0x224a,
 }
 
 /// Media width encoding for Status message
